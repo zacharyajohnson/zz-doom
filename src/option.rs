@@ -208,10 +208,6 @@ pub fn get_option_by_name_mut<'a>(
 }
 
 pub fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<&str>) {
-    if cmd_args.is_empty() {
-        return;
-    }
-
     let mut cmd_arg_index = 0;
     while cmd_arg_index < cmd_args.len() {
         let option_name: &str = cmd_args[cmd_arg_index];
@@ -324,12 +320,17 @@ mod tests {
 
     // set_options should still work
     // even if no cmd args are passed into it
-    // Which means no options will be set
+    // No options should have their values set
     #[test]
     fn test_set_options_works_with_no_cmd_args() {
         let mut doom_options: DoomOptions = DoomOptions::new();
         let cmd_args: Vec<&str> = Vec::new();
         set_options(&mut doom_options, cmd_args);
+
+        assert!(doom_options
+            .options
+            .iter()
+            .all(|option| { !option.enabled() && option.values == None }));
     }
 
     // All options should start with a -,
