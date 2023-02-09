@@ -212,10 +212,6 @@ pub fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<&str>) {
         return;
     }
 
-    if !cmd_args[0].starts_with('-') {
-        panic!("Invalid option {}. Must start with a -", cmd_args[0]);
-    }
-
     let mut cmd_arg_index = 0;
     while cmd_arg_index < cmd_args.len() {
         let option_name: &str = cmd_args[cmd_arg_index];
@@ -224,7 +220,6 @@ pub fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<&str>) {
         match option {
             Some(i) => {
                 let mut option_value: String = String::new();
-                let mut value_index = 0;
                 let min_num_values = i.min_num_values;
                 let max_num_values = i.max_num_values;
 
@@ -233,6 +228,8 @@ pub fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<&str>) {
                 if max_num_values == 0 {
                     option_value.push_str("true");
                 } else {
+                    let mut value_index = 0;
+
                     while cmd_arg_index != cmd_args.len()
                         && !cmd_args[cmd_arg_index].starts_with("-")
                     {
@@ -336,13 +333,20 @@ mod tests {
     }
 
     // All options should start with a -,
-    // and the first option is no exception.
-    // Needed to parse our options correctly
+    // invalidOption should fail
     #[test]
     #[should_panic]
-    fn test_set_options_with_invalid_option_at_beginning() {
+    fn test_set_options_with_invalid_option() {
         let mut doom_options: DoomOptions = DoomOptions::new();
-        let cmd_args: Vec<&str> = vec!["test", "fail", "fail"];
+        let cmd_args: Vec<&str> = vec![
+            "-devparm",
+            "-record",
+            "test",
+            "invalidOption",
+            "-wart",
+            "1",
+            "1",
+        ];
         set_options(&mut doom_options, cmd_args);
     }
 
@@ -394,11 +398,11 @@ mod tests {
         set_options(&mut doom_options, cmd_args);
     }
 
-    // Custom args, for now we don't support custom args but
+    // Custom options, for now we don't support custom options but
     // it might be nice to figure out how to do it
     #[test]
     #[should_panic]
-    fn test_set_options_with_custom_args() {
+    fn test_set_options_with_custom_options() {
         let mut doom_options: DoomOptions = DoomOptions::new();
         let cmd_args: Vec<&str> = vec!["-test", "-test1value", "1", "-test3value", "1", "2", "3"];
 
