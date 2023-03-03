@@ -1,0 +1,4 @@
+-shdev
+-file file1 path/to/file2 /path/to/file3
+-|test 1 2 3
+-	test2 3 4 5
