@@ -17,13 +17,13 @@ impl Default for DoomWads {
                     name: "doom.wad"
                 },
                 DoomWad {
+                    name: "doomu.wad"
+                },
+                DoomWad {
                     name: "doom2.wad"
                 },
                 DoomWad {
                     name: "doom2f.wad"
-                },
-                DoomWad {
-                    name: "doomu.wad"
                 },
                 DoomWad {
                     name: "tnt.wad"
