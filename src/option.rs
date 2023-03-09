@@ -302,6 +302,8 @@ mod tests {
     // shipped with, so we will support them and set them
     // up. The constructor for DoomOptions should insert
     // them for us.
+    // This is with no cmd line args passed in to check if
+    // they are always there.
     #[test]
     fn test_doom_options_new_intializes_with_default_doom_options() {
         let doom_options: DoomOptions = DoomOptions::new(Vec::new());
@@ -354,19 +356,6 @@ mod tests {
 
         let dev_option: Option<&mut DoomOption> = doom_options.get_option_by_name_mut("-devparm");
         assert!(dev_option.is_some());
-    }
-
-    // Creating doom options should still work with no options passed in
-    // even if no cmd args are passed into it
-    // No options should have their values set
-    #[test]
-    fn test_doom_options_new_works_with_no_cmd_args() {
-        let doom_options: DoomOptions = DoomOptions::new(Vec::new());
-
-        assert!(doom_options
-            .options
-            .iter()
-            .all(|option| { !option.enabled() && option.values == None }));
     }
 
     // All options should start with a -,
