@@ -16,7 +16,7 @@ pub struct DoomOptions {
 }
 
 impl DoomOptions {
-    pub fn new() -> DoomOptions {
+    pub fn new(cmd_args: Vec<String>) -> DoomOptions {
         let default_options: Vec<DoomOption> = vec![
             DoomOption {
                 name: "-devparm",
@@ -175,36 +175,34 @@ impl DoomOptions {
             },
         ];
 
-        DoomOptions {
+        let mut doom_options: DoomOptions = DoomOptions {
             options: default_options,
-        }
-    }
-}
+        };
 
-pub fn get_option_by_name<'a>(
-    doom_options: &'a DoomOptions,
-    option_name: &str,
-) -> Option<&'a DoomOption> {
-    for doom_option in &doom_options.options {
-        if doom_option.name == option_name {
-            return Some(doom_option);
-        }
+        set_options(&mut doom_options, cmd_args);
+
+        doom_options
     }
 
-    return None;
-}
-
-fn get_option_by_name_mut<'a>(
-    doom_options: &'a mut DoomOptions,
-    option_name: &str,
-) -> Option<&'a mut DoomOption> {
-    for doom_option in doom_options.options.iter_mut() {
-        if doom_option.name == option_name {
-            return Some(doom_option);
+    pub fn get_option_by_name(&self, option_name: &str) -> Option<&DoomOption> {
+        for doom_option in self.options.iter() {
+            if doom_option.name == option_name {
+                return Some(doom_option);
+            }
         }
+
+        return None;
     }
 
-    return None;
+    fn get_option_by_name_mut(&mut self, option_name: &str) -> Option<&mut DoomOption> {
+        for doom_option in self.options.iter_mut() {
+            if doom_option.name == option_name {
+                return Some(doom_option);
+            }
+        }
+
+        return None;
+    }
 }
 
 fn get_response_file_options(file_path: &str) -> Vec<String> {
@@ -229,7 +227,7 @@ fn get_response_file_options(file_path: &str) -> Vec<String> {
         .collect()
 }
 
-pub fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<String>) {
+fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<String>) {
     let mut arg_index = 0;
 
     let args_to_process = match cmd_args.iter().position(|x| x.starts_with("@")) {
@@ -250,7 +248,7 @@ pub fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<String>) {
 
     while arg_index < args_to_process.len() {
         let option_name: &str = &args_to_process[arg_index];
-        let option: Option<&mut DoomOption> = get_option_by_name_mut(doom_options, option_name);
+        let option: Option<&mut DoomOption> = doom_options.get_option_by_name_mut(option_name);
 
         match option {
             Some(i) => {
@@ -305,8 +303,8 @@ mod tests {
     // up. The constructor for DoomOptions should insert
     // them for us.
     #[test]
-    fn test_doom_options_intializes_with_default_doom_options() {
-        let doom_options: DoomOptions = DoomOptions::new();
+    fn test_doom_options_new_intializes_with_default_doom_options() {
+        let doom_options: DoomOptions = DoomOptions::new(Vec::new());
         let doom_option_names: Vec<String> = vec![
             "-devparm".to_string(),
             "-nomonsters".to_string(),
@@ -344,29 +342,26 @@ mod tests {
 
     #[test]
     fn test_get_option_by_name_returns_value() {
-        let doom_options: DoomOptions = DoomOptions::new();
+        let doom_options: DoomOptions = DoomOptions::new(Vec::new());
 
-        let dev_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-devparm");
+        let dev_option: Option<&DoomOption> = doom_options.get_option_by_name("-devparm");
         assert!(dev_option.is_some());
     }
 
     #[test]
     fn test_get_option_by_name_mut_returns_value() {
-        let mut doom_options: DoomOptions = DoomOptions::new();
+        let mut doom_options: DoomOptions = DoomOptions::new(Vec::new());
 
-        let dev_option: Option<&mut DoomOption> =
-            get_option_by_name_mut(&mut doom_options, "-devparm");
+        let dev_option: Option<&mut DoomOption> = doom_options.get_option_by_name_mut("-devparm");
         assert!(dev_option.is_some());
     }
 
-    // set_options should still work
+    // Creating doom options should still work with no options passed in
     // even if no cmd args are passed into it
     // No options should have their values set
     #[test]
-    fn test_set_options_works_with_no_cmd_args() {
-        let mut doom_options: DoomOptions = DoomOptions::new();
-        let cmd_args: Vec<String> = Vec::new();
-        set_options(&mut doom_options, cmd_args);
+    fn test_doom_options_new_works_with_no_cmd_args() {
+        let doom_options: DoomOptions = DoomOptions::new(Vec::new());
 
         assert!(doom_options
             .options
@@ -378,8 +373,7 @@ mod tests {
     // invalidOption should fail
     #[test]
     #[should_panic]
-    fn test_set_options_with_invalid_option() {
-        let mut doom_options: DoomOptions = DoomOptions::new();
+    fn test_doom_options_new_with_invalid_option() {
         let cmd_args: Vec<String> = vec![
             "-devparm".to_string(),
             "-record".to_string(),
@@ -389,7 +383,8 @@ mod tests {
             "1".to_string(),
             "1".to_string(),
         ];
-        set_options(&mut doom_options, cmd_args);
+
+        DoomOptions::new(cmd_args);
     }
 
     // We want to fail if we pass too many values for an option
@@ -397,8 +392,7 @@ mod tests {
     // a max of two values but we provided 3.
     #[test]
     #[should_panic]
-    fn test_set_options_with_too_many_option_values() {
-        let mut doom_options: DoomOptions = DoomOptions::new();
+    fn test_doom_options_new_with_too_many_option_values() {
         let cmd_args: Vec<String> = vec![
             "-devparm".to_string(),
             "-record".to_string(),
@@ -414,7 +408,8 @@ mod tests {
             "/path/to/file3".to_string(),
             "-comdev".to_string(),
         ];
-        set_options(&mut doom_options, cmd_args);
+
+        DoomOptions::new(cmd_args);
     }
 
     // We want to fail if we pass not enough values for an option
@@ -422,8 +417,7 @@ mod tests {
     // a min of two values but we provided 1.
     #[test]
     #[should_panic]
-    fn test_set_options_with_not_enough_option_values() {
-        let mut doom_options: DoomOptions = DoomOptions::new();
+    fn test_doom_options_new_with_not_enough_option_values() {
         let cmd_args: Vec<String> = vec![
             "-wart".to_string(),
             "1".to_string(),
@@ -437,15 +431,15 @@ mod tests {
             "/path/to/file3".to_string(),
             "-comdev".to_string(),
         ];
-        set_options(&mut doom_options, cmd_args);
+
+        DoomOptions::new(cmd_args);
     }
 
     // Custom options, for now we don't support custom options but
     // it might be nice to figure out how to do it
     #[test]
     #[should_panic]
-    fn test_set_options_with_custom_options() {
-        let mut doom_options: DoomOptions = DoomOptions::new();
+    fn test_doom_options_new_with_custom_options() {
         let cmd_args: Vec<String> = vec![
             "-test".to_string(),
             "-test1value".to_string(),
@@ -456,15 +450,13 @@ mod tests {
             "3".to_string(),
         ];
 
-        set_options(&mut doom_options, cmd_args);
+        DoomOptions::new(cmd_args);
     }
 
     // Existing args, values should be set,
     // no new structs should be created
     #[test]
-    fn test_set_existing_doom_option_values() {
-        let mut doom_options = DoomOptions::new();
-
+    fn test_doom_options_new_sets_existing_doom_option_values() {
         let cmd_args: Vec<String> = vec![
             "-wart".to_string(),
             "1".to_string(),
@@ -480,37 +472,37 @@ mod tests {
             "-comdev".to_string(),
         ];
 
-        set_options(&mut doom_options, cmd_args);
+        let doom_options = DoomOptions::new(cmd_args);
 
-        let devparm_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-devparm");
+        let devparm_option: Option<&DoomOption> = doom_options.get_option_by_name("-devparm");
         assert!(devparm_option.is_some());
 
         let devparm: &DoomOption = devparm_option.unwrap();
         assert!(devparm.values.as_ref().unwrap().eq("true"));
         assert!(devparm.enabled());
 
-        let shdev_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-devparm");
+        let shdev_option: Option<&DoomOption> = doom_options.get_option_by_name("-shdev");
         assert!(shdev_option.is_some());
 
         let shdev: &DoomOption = shdev_option.unwrap();
         assert!(shdev.values.as_ref().unwrap().eq("true"));
         assert!(shdev.enabled());
 
-        let wart_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-wart");
+        let wart_option: Option<&DoomOption> = doom_options.get_option_by_name("-wart");
         assert!(wart_option.is_some());
 
         let wart: &DoomOption = wart_option.unwrap();
         assert!(wart.values.as_ref().unwrap().eq("1 1"));
         assert!(wart.enabled());
 
-        let record_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-record");
+        let record_option: Option<&DoomOption> = doom_options.get_option_by_name("-record");
         assert!(record_option.is_some());
 
         let record: &DoomOption = record_option.unwrap();
         assert!(record.values.as_ref().unwrap().eq("test"));
         assert!(record.enabled());
 
-        let file_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-file");
+        let file_option: Option<&DoomOption> = doom_options.get_option_by_name("-file");
         assert!(file_option.is_some());
 
         let file: &DoomOption = file_option.unwrap();
@@ -521,7 +513,7 @@ mod tests {
             .eq("file1 path/to/file2 /path/to/file3"));
         assert!(file.enabled());
 
-        let comdev_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-comdev");
+        let comdev_option: Option<&DoomOption> = doom_options.get_option_by_name("-comdev");
         assert!(comdev_option.is_some());
 
         let comdev: &DoomOption = comdev_option.unwrap();
@@ -539,9 +531,7 @@ mod tests {
     // anything more than ascii code z) the line will be ignored and
     // not be processed
     #[test]
-    fn test_set_doom_options_from_response_file() {
-        let mut doom_options = DoomOptions::new();
-
+    fn test_doom_options_new_sets_doom_options_from_response_file() {
         let cmd_args: Vec<String> = vec![
             // Should be dropped since
             // it is before @responsefile
@@ -564,35 +554,35 @@ mod tests {
             "-comdev".to_string(),
         ];
 
-        set_options(&mut doom_options, cmd_args);
+        let doom_options = DoomOptions::new(cmd_args);
 
         // Before response file. Should not be set
-        let wart_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-wart");
+        let wart_option: Option<&DoomOption> = doom_options.get_option_by_name("-wart");
         assert!(wart_option.is_some());
 
         let wart: &DoomOption = wart_option.unwrap();
         assert!(wart.values.as_ref().is_none());
 
-        let devparm_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-devparm");
+        let devparm_option: Option<&DoomOption> = doom_options.get_option_by_name("-devparm");
 
         let devparm: &DoomOption = devparm_option.unwrap();
         assert!(devparm.values.as_ref().is_none());
 
-        let record_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-record");
+        let record_option: Option<&DoomOption> = doom_options.get_option_by_name("-record");
         assert!(record_option.is_some());
 
         let record: &DoomOption = record_option.unwrap();
         assert!(record.values.as_ref().is_none());
 
         // Start response file
-        let shdev_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-shdev");
+        let shdev_option: Option<&DoomOption> = doom_options.get_option_by_name("-shdev");
         assert!(shdev_option.is_some());
 
         let shdev: &DoomOption = shdev_option.unwrap();
         assert!(shdev.values.as_ref().unwrap().eq("true"));
         assert!(shdev.enabled());
 
-        let file_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-file");
+        let file_option: Option<&DoomOption> = doom_options.get_option_by_name("-file");
         assert!(file_option.is_some());
 
         let file: &DoomOption = file_option.unwrap();
@@ -605,7 +595,7 @@ mod tests {
         // End response File
 
         // After response file
-        let comdev_option: Option<&DoomOption> = get_option_by_name(&doom_options, "-comdev");
+        let comdev_option: Option<&DoomOption> = doom_options.get_option_by_name("-comdev");
         assert!(comdev_option.is_some());
 
         let comdev: &DoomOption = comdev_option.unwrap();
