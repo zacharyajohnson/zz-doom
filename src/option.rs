@@ -194,6 +194,19 @@ impl DoomOptions {
         return None;
     }
 
+    pub fn is_option_enabled(&self, option_name: &str) -> bool {
+        match self.get_option_by_name(option_name) {
+            Some(option) => option.enabled(),
+            None => false,
+        }
+    }
+
+    pub fn is_dev_option_enabled(&self) -> bool {
+        self.is_option_enabled("-shdev")
+            || self.is_option_enabled("-regdev")
+            || self.is_option_enabled("-comdev")
+    }
+
     fn get_option_by_name_mut(&mut self, option_name: &str) -> Option<&mut DoomOption> {
         for doom_option in self.options.iter_mut() {
             if doom_option.name == option_name {
@@ -351,6 +364,44 @@ mod tests {
     }
 
     #[test]
+    fn test_doom_options_is_option_enabled() {
+        let cmd_args: Vec<String> = vec![
+            "-devparm".to_string(),
+            "-record".to_string(),
+            "test".to_string(),
+            "-wart".to_string(),
+            "1".to_string(),
+            "1".to_string(),
+        ];
+
+        let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+
+        // Test an option that does exist that was passed in returns true
+        assert!(doom_options.is_option_enabled("-devparm"));
+        assert!(doom_options.is_option_enabled("-record"));
+        assert!(doom_options.is_option_enabled("-wart"));
+
+        // Test an option that does exist but wasn't passed in returns false
+        assert!(!doom_options.is_option_enabled("-shdev"));
+        // Test an option that doesn't exist returns false
+        assert!(!doom_options.is_option_enabled("-test"));
+    }
+
+    #[test]
+    fn test_doom_options_is_dev_option_enabled_returns_correct_values() {
+        let dev_options: Vec<String> = vec![
+            "-shdev".to_string(),
+            "-regdev".to_string(),
+            "-comdev".to_string(),
+        ];
+
+        for dev_option in dev_options {
+            let doom_options: DoomOptions = DoomOptions::new(vec![dev_option]);
+            assert!(doom_options.is_dev_option_enabled());
+        }
+    }
+
+    #[test]
     fn test_get_option_by_name_mut_returns_value() {
         let mut doom_options: DoomOptions = DoomOptions::new(Vec::new());
 
@@ -445,7 +496,7 @@ mod tests {
     // Existing args, values should be set,
     // no new structs should be created
     #[test]
-    fn test_doom_options_new_sets_existing_doom_option_values() {
+    fn test_doom_options_new_sets_doom_option_values_based_on_cmd_args() {
         let cmd_args: Vec<String> = vec![
             "-wart".to_string(),
             "1".to_string(),
@@ -516,8 +567,8 @@ mod tests {
     // Will drop all options passed into the command line before it
     // Will keep all options passed into the command line after it
     // If the option line in a response file has an invalid char
-    // such as tab or |, (anything less than ascii code for space or
-    // anything more than ascii code z) the line will be ignored and
+    // such as tab or |, (anything less then ascii code for space or
+    // anything more then ascii code z) the line will be ignored and
     // not be processed
     #[test]
     fn test_doom_options_new_sets_doom_options_from_response_file() {
