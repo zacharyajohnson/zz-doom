@@ -1,3 +1,44 @@
+use std::ops::RangeInclusive;
+
+// (option_name, min_num_values - max_num_values)
+const DEFAULT_OPTIONS: [(&str, RangeInclusive<u32>); 24] = [
+    ("-devparm", 0..=0),
+    ("-nomonsters", 0..=0),
+    ("-respawn", 0..=0),
+    ("-fast", 0..=0),
+    ("-debugfile", 0..=0),
+    ("-shdev", 0..=0),
+    ("-regdev", 0..=0),
+    ("-comdev", 0..=0),
+    ("-altdeath", 0..=0),
+    ("-deathmatch", 0..=0),
+    ("-cdrom", 0..=0),
+    // int
+    ("-turbo", 1..=1),
+    // 2 Strings, list
+    ("-wart", 2..=2),
+    ("-warp", 2..=2),
+    // List of paths
+    ("-file", 1..=255),
+    // String
+    ("-playdemo", 1..=1),
+    // String
+    ("-timedemo", 1..=1),
+    // int
+    ("-skill", 1..=1),
+    // int
+    ("-episode", 1..=1),
+    // int
+    ("-timer", 1..=1),
+    ("-avg", 0..=0),
+    // void pointer
+    ("-statcopy", 1..=1),
+    // String
+    ("-record", 1..=1),
+    // char
+    ("-loadgame", 1..=1),
+];
+
 pub struct DoomOption {
     name: &'static str,
     values: Option<String>,
@@ -17,166 +58,18 @@ pub struct DoomOptions {
 
 impl DoomOptions {
     pub fn new(cmd_args: Vec<String>) -> DoomOptions {
-        let default_options: Vec<DoomOption> = vec![
-            DoomOption {
-                name: "-devparm",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-nomonsters",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-respawn",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-fast",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-debugfile",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-shdev",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-regdev",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-comdev",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-altdeath",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-deathmatch",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            DoomOption {
-                name: "-cdrom",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            // int
-            DoomOption {
-                name: "-turbo",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-            // 2 Strings, list
-            DoomOption {
-                name: "-wart",
-                values: None,
-                min_num_values: 2,
-                max_num_values: 2,
-            },
-            DoomOption {
-                name: "-warp",
-                values: None,
-                min_num_values: 2,
-                max_num_values: 2,
-            },
-            // List of paths
-            DoomOption {
-                name: "-file",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 255,
-            },
-            // String
-            DoomOption {
-                name: "-playdemo",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-            // String
-            DoomOption {
-                name: "-timedemo",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-            // int
-            DoomOption {
-                name: "-skill",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-            // int
-            DoomOption {
-                name: "-episode",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-            // int
-            DoomOption {
-                name: "-timer",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-            DoomOption {
-                name: "-avg",
-                values: None,
-                min_num_values: 0,
-                max_num_values: 0,
-            },
-            // void pointer
-            DoomOption {
-                name: "-statcopy",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-            // String
-            DoomOption {
-                name: "-record",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-            // char
-            DoomOption {
-                name: "-loadgame",
-                values: None,
-                min_num_values: 1,
-                max_num_values: 1,
-            },
-        ];
-
         let mut doom_options: DoomOptions = DoomOptions {
-            options: default_options,
+            options: DEFAULT_OPTIONS
+                .iter()
+                .map(|x| -> DoomOption {
+                    DoomOption {
+                        name: x.0,
+                        values: None,
+                        min_num_values: *x.1.start(),
+                        max_num_values: *x.1.end(),
+                    }
+                })
+                .collect(),
         };
 
         set_options(&mut doom_options, cmd_args);
@@ -311,48 +204,24 @@ fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<String>) {
 mod tests {
     use crate::option::*;
 
-    // These are the original command line flags Doom
-    // shipped with, so we will support them and set them
-    // up. The constructor for DoomOptions should insert
-    // them for us.
-    // This is with no cmd line args passed in to check if
+    // The DEFAULT_OPTIONS variable contains the original
+    // command line flags Doom shipped with, so we will support them
+    // and set them up. The constructor for DoomOptions should insert
+    // them for us. This is with no cmd line args passed in to check if
     // they are always there.
     #[test]
     fn test_doom_options_new_intializes_with_default_doom_options() {
         let doom_options: DoomOptions = DoomOptions::new(Vec::new());
-        let doom_option_names: Vec<String> = vec![
-            "-devparm".to_string(),
-            "-nomonsters".to_string(),
-            "-respawn".to_string(),
-            "-fast".to_string(),
-            "-debugfile".to_string(),
-            "-shdev".to_string(),
-            "-regdev".to_string(),
-            "-comdev".to_string(),
-            "-altdeath".to_string(),
-            "-deathmatch".to_string(),
-            "-cdrom".to_string(),
-            "-turbo".to_string(),
-            "-wart".to_string(),
-            "-warp".to_string(),
-            "-file".to_string(),
-            "-playdemo".to_string(),
-            "-timedemo".to_string(),
-            "-skill".to_string(),
-            "-episode".to_string(),
-            "-timer".to_string(),
-            "-avg".to_string(),
-            "-statcopy".to_string(),
-            "-record".to_string(),
-            "-loadgame".to_string(),
-        ];
 
         assert!(doom_options.options.iter().all(|option| {
-            doom_option_names.iter().any(|x| x == option.name)
-                && !option.enabled()
-                && option.values == None
+            DEFAULT_OPTIONS.iter().any(|x| {
+                x.0 == option.name
+                    && *x.1.start() == option.min_num_values
+                    && *x.1.end() == option.max_num_values
+            }) && !option.enabled()
         }));
-        assert_eq!(doom_options.options.len(), doom_option_names.len());
+
+        assert_eq!(doom_options.options.len(), DEFAULT_OPTIONS.len());
     }
 
     #[test]
