@@ -136,70 +136,68 @@ fn get_response_file_options(file_path: &str) -> Vec<String> {
 fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<String>) {
     let mut arg_index = 0;
 
-    let args_to_process = match cmd_args.iter().position(|x| x.starts_with("@")) {
-        Some(i) => {
+    let args_to_process: Vec<String> = cmd_args
+        .iter()
+        .position(|x| x.starts_with("@"))
+        .map(|index| {
             let mut response_file_args: Vec<String> =
-                get_response_file_options(cmd_args[i].trim_start_matches("@"));
+                get_response_file_options(cmd_args[index].trim_start_matches("@"));
 
             // Grab all the args after response and put it into the args list
             // to process since thats how the original game behaves
-            if i < cmd_args.len() - 1 {
-                response_file_args.extend_from_slice(&cmd_args[i + 1..]);
+            if index < cmd_args.len() - 1 {
+                response_file_args.extend_from_slice(&cmd_args[index + 1..]);
             }
 
             response_file_args
-        }
-        None => cmd_args,
-    };
+        })
+        .unwrap_or_else(|| cmd_args);
 
     while arg_index < args_to_process.len() {
         let option_name: &str = &args_to_process[arg_index];
-        let option: Option<&mut DoomOption> = doom_options.get_option_by_name_mut(option_name);
+        let option: &mut DoomOption = doom_options
+            .get_option_by_name_mut(option_name)
+            .unwrap_or_else(|| panic!("Option {} does not exist.", option_name));
 
-        match option {
-            Some(i) => {
-                let mut option_value: String = String::new();
-                let min_num_values = i.min_num_values;
-                let max_num_values = i.max_num_values;
+        let mut option_value: String = String::new();
+        let min_num_values = option.min_num_values;
+        let max_num_values = option.max_num_values;
 
-                arg_index += 1;
+        arg_index += 1;
 
-                if max_num_values == 0 {
-                    option_value.push_str("true");
-                } else {
-                    let mut value_index = 0;
+        if max_num_values == 0 {
+            option_value.push_str("true");
+        } else {
+            let mut value_index = 0;
 
-                    while arg_index != args_to_process.len()
-                        && !args_to_process[arg_index].starts_with("-")
-                    {
-                        value_index += 1;
+            while arg_index != args_to_process.len() && !args_to_process[arg_index].starts_with("-")
+            {
+                value_index += 1;
 
-                        if value_index > max_num_values {
-                            panic!("Too many values provided for option {}. Requires min of {} values and max of {} values, but {} supplied.", i.name, min_num_values, max_num_values, value_index);
-                        }
-
-                        option_value.push_str(&args_to_process[arg_index]);
-                        arg_index += 1;
-
-                        //TODO This is ugly
-                        if arg_index != args_to_process.len()
-                            && !args_to_process[arg_index].starts_with("-")
-                        {
-                            option_value.push_str(" ");
-                        }
-                    }
-
-                    if value_index < min_num_values {
-                        panic!("Not enough values provided for option {}. Requires min of {} values and max of {} values, but {} supplied.", i.name, min_num_values, max_num_values, value_index);
-                    }
+                if value_index > max_num_values {
+                    panic!("Too many values provided for option {}. Requires min of {} values and max of {} values, but {} supplied.", option.name, min_num_values, max_num_values, value_index);
                 }
 
-                i.values = Some(option_value);
+                option_value.push_str(&args_to_process[arg_index]);
+                arg_index += 1;
+
+                //TODO This is ugly
+                if arg_index != args_to_process.len()
+                    && !args_to_process[arg_index].starts_with("-")
+                {
+                    option_value.push_str(" ");
+                }
             }
-            None => panic!("Option {} does not exist.", option_name),
+
+            if value_index < min_num_values {
+                panic!("Not enough values provided for option {}. Requires min of {} values and max of {} values, but {} supplied.", option.name, min_num_values, max_num_values, value_index);
+            }
         }
+
+        option.values = Some(option_value);
     }
 }
+
 #[cfg(test)]
 mod tests {
     use crate::option::*;
