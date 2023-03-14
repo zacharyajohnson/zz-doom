@@ -511,4 +511,12 @@ mod tests {
         assert!(comdev.values.as_ref().unwrap().eq("true"));
         assert!(comdev.enabled());
     }
+
+    #[test]
+    #[should_panic]
+    // If we can't find the response file we should exit
+    fn test_doom_options_invalid_response_file() {
+        let cmd_args: Vec<String> = vec!["@invalid".to_string()];
+        DoomOptions::new(cmd_args);
+    }
 }
