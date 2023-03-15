@@ -58,23 +58,9 @@ pub struct DoomOptions {
 
 impl DoomOptions {
     pub fn new(cmd_args: Vec<String>) -> DoomOptions {
-        let mut doom_options: DoomOptions = DoomOptions {
-            options: DEFAULT_OPTIONS
-                .iter()
-                .map(|x| -> DoomOption {
-                    DoomOption {
-                        name: x.0,
-                        values: None,
-                        min_num_values: *x.1.start(),
-                        max_num_values: *x.1.end(),
-                    }
-                })
-                .collect(),
-        };
-
-        set_options(&mut doom_options, cmd_args);
-
-        doom_options
+        DoomOptions {
+            options: create_options(cmd_args),
+        }
     }
 
     pub fn get_option_by_name(&self, option_name: &str) -> Option<&DoomOption> {
@@ -98,16 +84,6 @@ impl DoomOptions {
         self.is_option_enabled("-shdev")
             || self.is_option_enabled("-regdev")
             || self.is_option_enabled("-comdev")
-    }
-
-    fn get_option_by_name_mut(&mut self, option_name: &str) -> Option<&mut DoomOption> {
-        for doom_option in self.options.iter_mut() {
-            if doom_option.name == option_name {
-                return Some(doom_option);
-            }
-        }
-
-        return None;
     }
 }
 
@@ -133,8 +109,20 @@ fn get_response_file_options(file_path: &str) -> Vec<String> {
         .collect()
 }
 
-fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<String>) {
+fn create_options(cmd_args: Vec<String>) -> Vec<DoomOption> {
     let mut arg_index = 0;
+
+    let mut doom_options: Vec<DoomOption> = DEFAULT_OPTIONS
+        .iter()
+        .map(|x| -> DoomOption {
+            DoomOption {
+                name: x.0,
+                values: None,
+                min_num_values: *x.1.start(),
+                max_num_values: *x.1.end(),
+            }
+        })
+        .collect();
 
     let args_to_process: Vec<String> = cmd_args
         .iter()
@@ -156,7 +144,8 @@ fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<String>) {
     while arg_index < args_to_process.len() {
         let option_name: &str = &args_to_process[arg_index];
         let option: &mut DoomOption = doom_options
-            .get_option_by_name_mut(option_name)
+            .iter_mut()
+            .find(|option| option.name == option_name)
             .unwrap_or_else(|| panic!("Option {} does not exist.", option_name));
 
         let mut option_value: String = String::new();
@@ -196,6 +185,7 @@ fn set_options(doom_options: &mut DoomOptions, cmd_args: Vec<String>) {
 
         option.values = Some(option_value);
     }
+    doom_options
 }
 
 #[cfg(test)]
@@ -266,14 +256,6 @@ mod tests {
             let doom_options: DoomOptions = DoomOptions::new(vec![dev_option]);
             assert!(doom_options.is_dev_option_enabled());
         }
-    }
-
-    #[test]
-    fn test_get_option_by_name_mut_returns_value() {
-        let mut doom_options: DoomOptions = DoomOptions::new(Vec::new());
-
-        let dev_option: Option<&mut DoomOption> = doom_options.get_option_by_name_mut("-devparm");
-        assert!(dev_option.is_some());
     }
 
     // All options should start with a -,
