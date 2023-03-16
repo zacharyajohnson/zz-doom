@@ -64,13 +64,7 @@ impl DoomOptions {
     }
 
     pub fn get_option_by_name(&self, option_name: &str) -> Option<&DoomOption> {
-        for doom_option in self.options.iter() {
-            if doom_option.name == option_name {
-                return Some(doom_option);
-            }
-        }
-
-        return None;
+        self.options.iter().find(|option| option.name == option_name)
     }
 
     pub fn is_option_enabled(&self, option_name: &str) -> bool {
