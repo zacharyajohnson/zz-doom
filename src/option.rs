@@ -80,10 +80,12 @@ impl DoomOptions {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_dev_option_enabled(&self) -> bool {
         self.is_option_enabled("-shdev")
             || self.is_option_enabled("-regdev")
             || self.is_option_enabled("-comdev")
+            || self.is_option_enabled("-devparm")
     }
 }
 
@@ -250,6 +252,7 @@ mod tests {
             "-shdev".to_string(),
             "-regdev".to_string(),
             "-comdev".to_string(),
+            "-devparm".to_string(),
         ];
 
         for dev_option in dev_options {
