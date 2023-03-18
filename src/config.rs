@@ -2,7 +2,7 @@ use std::env;
 use std::ffi::OsStr;
 use std::path::PathBuf;
 
-use crate::option::DoomOptions;
+use crate::option::{DoomOption, DoomOptions};
 use crate::util;
 use crate::wad::iwad::VALID_IWADS;
 
@@ -45,6 +45,15 @@ pub enum GameType {
     Unknown,
 }
 
+#[derive(Debug, PartialEq, Eq)]
+pub enum GameDifficulty {
+    Baby,
+    Easy,
+    Medium,
+    Hard,
+    Nightmare,
+}
+
 impl GameType {
     pub fn from_wad_file_name(wad_file_name: &str) -> GameType {
         VALID_IWADS
@@ -60,6 +69,7 @@ pub struct Config<'a> {
     pub wad_files_dir: PathBuf,
     pub engine_version: &'a str,
     pub game_type: GameType,
+    pub game_difficulty: GameDifficulty,
     pub language: Language,
 }
 
@@ -100,6 +110,20 @@ impl<'a> Config<'a> {
     }
 
     pub fn new(doom_options: &DoomOptions) -> Self {
+        let game_difficulty: GameDifficulty = if doom_options.is_option_enabled("-skill") {
+            let skill_option: &DoomOption = doom_options.get_option_by_name("-skill").unwrap();
+            match skill_option.values.get(0).unwrap().as_str() {
+                "1" => GameDifficulty::Baby,
+                "2" => GameDifficulty::Easy,
+                "3" => GameDifficulty::Medium,
+                "4" => GameDifficulty::Hard,
+                "5" => GameDifficulty::Nightmare,
+                _ => panic!("Invalid value for -skill option. Valid range is 1-5"),
+            }
+        } else {
+            GameDifficulty::Medium
+        };
+
         let config_file_path = if doom_options.is_option_enabled("-shdev")
             || doom_options.is_option_enabled("-regdev")
             || doom_options.is_option_enabled("-comdev")
@@ -144,6 +168,7 @@ impl<'a> Config<'a> {
             wad_files_dir,
             engine_version: env!("CARGO_PKG_VERSION"),
             game_type: GameType::Unknown,
+            game_difficulty,
             language: Language::English,
         }
     }
@@ -175,6 +200,38 @@ mod tests {
         assert_eq!(config.engine_version, env!("CARGO_PKG_VERSION"));
         assert_eq!(config.game_type, GameType::Unknown);
         assert_eq!(config.language, Language::English);
+        assert_eq!(config.game_difficulty, GameDifficulty::Medium);
+    }
+
+    #[test]
+    fn test_config_new_game_difficulty_set_based_on_skill_option_value() {
+        let valid_skill_values: [&str; 5] = ["1", "2", "3", "4", "5"];
+
+        for value in valid_skill_values {
+            let cmd_args: Vec<String> = vec![String::from("-skill"), String::from(value)];
+            let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+
+            let enum_value: u8 = value.parse::<u8>().unwrap() - 1;
+
+            let config: Config = Config::new(&doom_options);
+            assert_eq!(config.game_difficulty as u8, enum_value);
+        }
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_config_new_game_difficulty_with_skill_option_value_below_min_value() {
+        let cmd_args: Vec<String> = vec![String::from("-skill"), String::from("0")];
+        let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+        Config::new(&doom_options);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_config_new_game_difficulty_with_skill_option_value_above_max_value() {
+        let cmd_args: Vec<String> = vec![String::from("-skill"), String::from("6")];
+        let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+        Config::new(&doom_options);
     }
 
     #[test]
@@ -259,6 +316,7 @@ mod tests {
             wad_files_dir: PathBuf::from(""),
             engine_version: "1.0",
             game_type: GameType::DoomIShareware,
+            game_difficulty: GameDifficulty::Medium,
             language: Language::English,
         };
 
@@ -286,6 +344,7 @@ mod tests {
             wad_files_dir: PathBuf::from(""),
             engine_version: "",
             game_type: GameType::Unknown,
+            game_difficulty: GameDifficulty::Medium,
             language: Language::English,
         };
 
@@ -318,6 +377,7 @@ mod tests {
             wad_files_dir: PathBuf::from(""),
             engine_version: "",
             game_type: GameType::Unknown,
+            game_difficulty: GameDifficulty::Medium,
             language: Language::English,
         };
 
