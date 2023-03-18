@@ -274,7 +274,7 @@ mod tests {
     #[test]
     fn test_config_new_config_file_path_is_in_home_dir_unix() {
         temp_env::with_var("HOME", Some("home"), || {
-            let config: Config = Config::new();
+            let config: Config = Config::new(&DoomOptions::new(Vec::new()));
             let mut home_dir: PathBuf = PathBuf::from("home");
             home_dir.push(".doomrc");
 
@@ -287,7 +287,7 @@ mod tests {
     #[should_panic]
     fn test_config_new_when_home_environment_variable_is_not_set_unix() {
         temp_env::with_var_unset("HOME", || {
-            Config::new();
+            Config::new(&DoomOptions::new(Vec::new()));
         });
     }
 
