@@ -1,4 +1,6 @@
-use std::ops::RangeInclusive;
+use std::{ops::RangeInclusive, path::PathBuf};
+
+use crate::util;
 
 // (option_name, min_num_values - max_num_values)
 const DEFAULT_OPTIONS: [(&str, RangeInclusive<u32>); 24] = [
@@ -83,12 +85,22 @@ impl DoomOptions {
     }
 }
 
-fn get_response_file_options(file_path: &str) -> Vec<String> {
-    let lines: Vec<String> = std::fs::read_to_string(file_path)
-        .expect(&format!("Unable to find response file {}", file_path))
+fn get_response_file_options(file_path: PathBuf) -> Vec<String> {
+    let final_file_path = if file_path.is_relative() {
+        let mut exe_parent_path: PathBuf = util::exe_parent_path();
+        exe_parent_path.push(file_path);
+        exe_parent_path
+    } else {
+        file_path
+    };
+
+    let lines: Vec<String> = std::fs::read_to_string(&final_file_path)
+        .expect(&format!("Unable to find response file: {}", final_file_path.display()))
         .lines()
         .map(|x| x.to_owned())
         .collect();
+
+    println!("Found response file {}", final_file_path.display());
 
     lines
         .iter()
@@ -125,7 +137,7 @@ fn create_options(cmd_args: Vec<String>) -> Vec<DoomOption> {
         .position(|x| x.starts_with("@"))
         .map(|index| {
             let mut response_file_args: Vec<String> =
-                get_response_file_options(cmd_args[index].trim_start_matches("@"));
+                get_response_file_options(PathBuf::from(cmd_args[index].trim_start_matches("@")));
 
             // Grab all the args after response and put it into the args list
             // to process since thats how the original game behaves
@@ -409,6 +421,8 @@ mod tests {
 
     // Read arguments in from a response file denoated
     // by @response_file_path
+    // Relative paths for response file will always be interperted
+    // as starting at the dir the exe is located in
     // The response file will have one option and its values per line
     // Will drop all options passed into the command line before it
     // Will keep all options passed into the command line after it
@@ -418,6 +432,10 @@ mod tests {
     // not be processed
     #[test]
     fn test_doom_options_new_sets_doom_options_from_response_file() {
+        let mut exe_parent_path: PathBuf =  util::exe_parent_path();
+        exe_parent_path.push("responsefile");
+
+        std::fs::copy("tests/resource/responsefile", exe_parent_path).unwrap_or_else(|error| panic!("{}", error));
         let cmd_args: Vec<String> = vec![
             // Should be dropped since
             // it is before @responsefile
@@ -436,7 +454,7 @@ mod tests {
             //-shdev and -file are valid and should be processed
             //-test and test2 have invalid chars so they should be ignored
             // Should keep -comdev since its after @responsefile
-            "@tests/resource/responsefile".to_string(),
+            "@responsefile".to_string(),
             "-comdev".to_string(),
         ];
 
