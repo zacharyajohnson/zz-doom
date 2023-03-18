@@ -75,14 +75,6 @@ impl DoomOptions {
             None => false,
         }
     }
-
-    #[allow(dead_code)]
-    pub fn is_dev_option_enabled(&self) -> bool {
-        self.is_option_enabled("-shdev")
-            || self.is_option_enabled("-regdev")
-            || self.is_option_enabled("-comdev")
-            || self.is_option_enabled("-devparm")
-    }
 }
 
 fn get_response_file_options(file_path: PathBuf) -> Vec<String> {
@@ -250,21 +242,6 @@ mod tests {
         assert!(!doom_options.is_option_enabled("-shdev"));
         // Test an option that doesn't exist returns false
         assert!(!doom_options.is_option_enabled("-test"));
-    }
-
-    #[test]
-    fn test_doom_options_is_dev_option_enabled_returns_correct_values() {
-        let dev_options: Vec<String> = vec![
-            "-shdev".to_string(),
-            "-regdev".to_string(),
-            "-comdev".to_string(),
-            "-devparm".to_string(),
-        ];
-
-        for dev_option in dev_options {
-            let doom_options: DoomOptions = DoomOptions::new(vec![dev_option]);
-            assert!(doom_options.is_dev_option_enabled());
-        }
     }
 
     // All options should start with a -,
