@@ -66,7 +66,9 @@ impl DoomOptions {
     }
 
     pub fn get_option_by_name(&self, option_name: &str) -> Option<&DoomOption> {
-        self.options.iter().find(|option| option.name == option_name)
+        self.options
+            .iter()
+            .find(|option| option.name == option_name)
     }
 
     pub fn is_option_enabled(&self, option_name: &str) -> bool {
@@ -87,7 +89,10 @@ fn get_response_file_options(file_path: PathBuf) -> Vec<String> {
     };
 
     let lines: Vec<String> = std::fs::read_to_string(&final_file_path)
-        .expect(&format!("Unable to find response file: {}", final_file_path.display()))
+        .expect(&format!(
+            "Unable to find response file: {}",
+            final_file_path.display()
+        ))
         .lines()
         .map(|x| x.to_owned())
         .collect();
@@ -409,10 +414,11 @@ mod tests {
     // not be processed
     #[test]
     fn test_doom_options_new_sets_doom_options_from_response_file() {
-        let mut exe_parent_path: PathBuf =  util::exe_parent_path();
+        let mut exe_parent_path: PathBuf = util::exe_parent_path();
         exe_parent_path.push("responsefile");
 
-        std::fs::copy("tests/resource/responsefile", exe_parent_path).unwrap_or_else(|error| panic!("{}", error));
+        std::fs::copy("tests/resource/responsefile", exe_parent_path)
+            .unwrap_or_else(|error| panic!("{}", error));
         let cmd_args: Vec<String> = vec![
             // Should be dropped since
             // it is before @responsefile
