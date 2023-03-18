@@ -177,6 +177,21 @@ mod tests {
         assert_eq!(config.language, Language::English);
     }
 
+    #[test]
+    fn test_config_new_config_file_path_when_dev_options_are_set() {
+        let dev_options: [&str; 3] = ["-shdev", "-comdev", "-regdev"];
+
+        let mut exe_parent_path = util::exe_parent_path();
+        exe_parent_path.push(DEV_CONFIG_FILE_NAME);
+
+        for option in dev_options {
+            let cmd_args: Vec<String> = vec![String::from(option)];
+            let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+            let config: Config = Config::new(&doom_options);
+            assert_eq!(config.config_file_path, exe_parent_path);
+        }
+    }
+
     #[cfg(target_family = "windows")]
     #[test]
     fn test_config_new_config_file_path_is_in_home_dir_windows() {
