@@ -43,15 +43,10 @@ const DEFAULT_OPTIONS: [(&str, RangeInclusive<u32>); 24] = [
 
 pub struct DoomOption {
     name: &'static str,
-    values: Option<String>,
+    pub enabled: bool,
+    pub values: Vec<String>,
     min_num_values: u32,
     max_num_values: u32,
-}
-
-impl DoomOption {
-    pub fn enabled(&self) -> bool {
-        self.values.is_some()
-    }
 }
 
 pub struct DoomOptions {
@@ -73,7 +68,7 @@ impl DoomOptions {
 
     pub fn is_option_enabled(&self, option_name: &str) -> bool {
         match self.get_option_by_name(option_name) {
-            Some(option) => option.enabled(),
+            Some(option) => option.enabled,
             None => false,
         }
     }
@@ -122,7 +117,8 @@ fn create_options(cmd_args: Vec<String>) -> Vec<DoomOption> {
         .map(|x| -> DoomOption {
             DoomOption {
                 name: x.0,
-                values: None,
+                enabled: false,
+                values: Vec::new(),
                 min_num_values: *x.1.start(),
                 max_num_values: *x.1.end(),
             }
@@ -153,49 +149,51 @@ fn create_options(cmd_args: Vec<String>) -> Vec<DoomOption> {
             .find(|option| option.name == option_name)
             .unwrap_or_else(|| panic!("Option {} does not exist.", option_name));
 
-        let mut option_value: String = String::new();
+        let mut option_values: Vec<String> = Vec::new();
         let min_num_values = option.min_num_values;
         let max_num_values = option.max_num_values;
 
         arg_index += 1;
 
-        if max_num_values == 0 {
-            option_value.push_str("true");
-        } else {
-            let mut value_index = 0;
+        let mut value_index = 0;
 
-            while arg_index != args_to_process.len() && !args_to_process[arg_index].starts_with("-")
-            {
-                value_index += 1;
+        while arg_index != args_to_process.len() && !args_to_process[arg_index].starts_with("-") {
+            value_index += 1;
 
-                if value_index > max_num_values {
-                    panic!("Too many values provided for option {}. Requires min of {} values and max of {} values, but {} supplied.", option.name, min_num_values, max_num_values, value_index);
-                }
-
-                option_value.push_str(&args_to_process[arg_index]);
-                arg_index += 1;
-
-                //TODO This is ugly
-                if arg_index != args_to_process.len()
-                    && !args_to_process[arg_index].starts_with("-")
-                {
-                    option_value.push_str(" ");
-                }
-            }
-
-            if value_index < min_num_values {
-                panic!("Not enough values provided for option {}. Requires min of {} values and max of {} values, but {} supplied.", option.name, min_num_values, max_num_values, value_index);
-            }
+            option_values.push(args_to_process[arg_index].clone());
+            arg_index += 1;
         }
 
-        option.values = Some(option_value);
+        if value_index > max_num_values {
+            panic!("Too many values provided for option {}. Requires min of {} values and max of {} values, but {} supplied.", option.name, min_num_values, max_num_values, value_index);
+        } else if value_index < min_num_values {
+            panic!("Not enough values provided for option {}. Requires min of {} values and max of {} values, but {} supplied.", option.name, min_num_values, max_num_values, value_index);
+        }
+
+        option.values = option_values;
+        option.enabled = true;
     }
     doom_options
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashMap;
+
     use crate::option::*;
+
+    fn generate_cmd_args(option_value_map: &HashMap<&str, &[&str]>) -> Vec<String> {
+        let mut cmd_args: Vec<String> = Vec::new();
+        for (option, values) in option_value_map {
+            cmd_args.push(String::from(*option));
+
+            for value in *values {
+                cmd_args.push(value.to_string());
+            }
+        }
+
+        cmd_args
+    }
 
     // The DEFAULT_OPTIONS variable contains the original
     // command line flags Doom shipped with, so we will support them
@@ -211,7 +209,7 @@ mod tests {
                 x.0 == option.name
                     && *x.1.start() == option.min_num_values
                     && *x.1.end() == option.max_num_values
-            }) && !option.enabled()
+            }) && !option.enabled
         }));
 
         assert_eq!(doom_options.options.len(), DEFAULT_OPTIONS.len());
@@ -227,21 +225,19 @@ mod tests {
 
     #[test]
     fn test_doom_options_is_option_enabled() {
-        let cmd_args: Vec<String> = vec![
-            "-devparm".to_string(),
-            "-record".to_string(),
-            "test".to_string(),
-            "-wart".to_string(),
-            "1".to_string(),
-            "1".to_string(),
-        ];
+        let option_value_map: HashMap<&str, &[&str]> = HashMap::from([
+            ("-devparm", [].as_slice()),
+            ("-record", ["test"].as_slice()),
+            ("-wart", ["1", "1"].as_slice()),
+        ]);
 
+        let cmd_args: Vec<String> = generate_cmd_args(&option_value_map);
         let doom_options: DoomOptions = DoomOptions::new(cmd_args);
 
         // Test an option that does exist that was passed in returns true
-        assert!(doom_options.is_option_enabled("-devparm"));
-        assert!(doom_options.is_option_enabled("-record"));
-        assert!(doom_options.is_option_enabled("-wart"));
+        for option in option_value_map.keys() {
+            assert!(doom_options.is_option_enabled(option));
+        }
 
         // Test an option that does exist but wasn't passed in returns false
         assert!(!doom_options.is_option_enabled("-shdev"));
@@ -254,15 +250,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_doom_options_new_with_invalid_option() {
-        let cmd_args: Vec<String> = vec![
-            "-devparm".to_string(),
-            "-record".to_string(),
-            "test".to_string(),
-            "invalidOption".to_string(),
-            "-wart".to_string(),
-            "1".to_string(),
-            "1".to_string(),
-        ];
+        let cmd_args: Vec<String> = vec!["invalidOption".to_string()];
 
         DoomOptions::new(cmd_args);
     }
@@ -274,19 +262,10 @@ mod tests {
     #[should_panic]
     fn test_doom_options_new_with_too_many_option_values() {
         let cmd_args: Vec<String> = vec![
-            "-devparm".to_string(),
-            "-record".to_string(),
-            "test".to_string(),
             "-wart".to_string(),
             "1".to_string(),
             "1".to_string(),
             "1".to_string(),
-            "-shdev".to_string(),
-            "-file".to_string(),
-            "file1".to_string(),
-            "path/to/file2".to_string(),
-            "/path/to/file3".to_string(),
-            "-comdev".to_string(),
         ];
 
         DoomOptions::new(cmd_args);
@@ -298,19 +277,7 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_doom_options_new_with_not_enough_option_values() {
-        let cmd_args: Vec<String> = vec![
-            "-wart".to_string(),
-            "1".to_string(),
-            "-devparm".to_string(),
-            "-record".to_string(),
-            "test".to_string(),
-            "-shdev".to_string(),
-            "-file".to_string(),
-            "file1".to_string(),
-            "path/to/file2".to_string(),
-            "/path/to/file3".to_string(),
-            "-comdev".to_string(),
-        ];
+        let cmd_args: Vec<String> = vec!["-wart".to_string(), "1".to_string()];
 
         DoomOptions::new(cmd_args);
     }
@@ -337,68 +304,34 @@ mod tests {
     // no new structs should be created
     #[test]
     fn test_doom_options_new_sets_doom_option_values_based_on_cmd_args() {
-        let cmd_args: Vec<String> = vec![
-            "-wart".to_string(),
-            "1".to_string(),
-            "1".to_string(),
-            "-devparm".to_string(),
-            "-record".to_string(),
-            "test".to_string(),
-            "-shdev".to_string(),
-            "-file".to_string(),
-            "file1".to_string(),
-            "path/to/file2".to_string(),
-            "/path/to/file3".to_string(),
-            "-comdev".to_string(),
-        ];
+        let option_value_map: HashMap<&str, &[&str]> = HashMap::from([
+            ("-wart", ["1", "1"].as_slice()),
+            ("-devparm", [].as_slice()),
+            ("-record", ["test"].as_slice()),
+            ("-shdev", [].as_slice()),
+            (
+                "-file",
+                ["file1", "path/to/file2", "/path/to/file3"].as_slice(),
+            ),
+            ("-comdev", [].as_slice()),
+        ]);
+
+        let cmd_args: Vec<String> = generate_cmd_args(&option_value_map);
 
         let doom_options = DoomOptions::new(cmd_args);
 
-        let devparm_option: Option<&DoomOption> = doom_options.get_option_by_name("-devparm");
-        assert!(devparm_option.is_some());
+        for (option_name, values) in option_value_map {
+            let option: &DoomOption = doom_options
+                .get_option_by_name(option_name)
+                .unwrap_or_else(|| panic!("Could not find option {}", option_name));
 
-        let devparm: &DoomOption = devparm_option.unwrap();
-        assert!(devparm.values.as_ref().unwrap().eq("true"));
-        assert!(devparm.enabled());
+            for value in values {
+                assert!(option.values.contains(&value.to_string()));
+            }
 
-        let shdev_option: Option<&DoomOption> = doom_options.get_option_by_name("-shdev");
-        assert!(shdev_option.is_some());
-
-        let shdev: &DoomOption = shdev_option.unwrap();
-        assert!(shdev.values.as_ref().unwrap().eq("true"));
-        assert!(shdev.enabled());
-
-        let wart_option: Option<&DoomOption> = doom_options.get_option_by_name("-wart");
-        assert!(wart_option.is_some());
-
-        let wart: &DoomOption = wart_option.unwrap();
-        assert!(wart.values.as_ref().unwrap().eq("1 1"));
-        assert!(wart.enabled());
-
-        let record_option: Option<&DoomOption> = doom_options.get_option_by_name("-record");
-        assert!(record_option.is_some());
-
-        let record: &DoomOption = record_option.unwrap();
-        assert!(record.values.as_ref().unwrap().eq("test"));
-        assert!(record.enabled());
-
-        let file_option: Option<&DoomOption> = doom_options.get_option_by_name("-file");
-        assert!(file_option.is_some());
-
-        let file: &DoomOption = file_option.unwrap();
-        assert!(file
-            .values
-            .as_ref()
-            .unwrap()
-            .eq("file1 path/to/file2 /path/to/file3"));
-        assert!(file.enabled());
-
-        let comdev_option: Option<&DoomOption> = doom_options.get_option_by_name("-comdev");
-        assert!(comdev_option.is_some());
-
-        let comdev: &DoomOption = comdev_option.unwrap();
-        assert!(comdev.values.as_ref().unwrap().eq("true"));
-        assert!(comdev.enabled());
+            assert_eq!(option.values.len(), values.len());
+            assert!(option.enabled);
+        }
     }
 
     // Read arguments in from a response file denoated
@@ -419,66 +352,63 @@ mod tests {
 
         std::fs::copy("tests/resource/responsefile", exe_parent_path)
             .unwrap_or_else(|error| panic!("{}", error));
-        let cmd_args: Vec<String> = vec![
-            // Should be dropped since
-            // it is before @responsefile
-            "-wart".to_string(),
-            "1".to_string(),
-            "1".to_string(),
-            "-devparm".to_string(),
-            "-record".to_string(),
-            "test".to_string(),
-            // For this test, response file will
-            // have:
-            //      -shdev
-            //      -file file1 path/to/file2 /path/to/file3
-            //      -|test 1 2 3
-            //      -(tab)test2 3 4 5
-            //-shdev and -file are valid and should be processed
-            //-test and test2 have invalid chars so they should be ignored
-            // Should keep -comdev since its after @responsefile
-            "@responsefile".to_string(),
-            "-comdev".to_string(),
-        ];
+
+        // Should be dropped since
+        // it is before @responsefile
+        let option_value_map_before: HashMap<&str, &[&str]> = HashMap::from([
+            ("-wart", ["1", "1"].as_slice()),
+            ("-devparm", [].as_slice()),
+            ("-record", ["test"].as_slice()),
+        ]);
+
+        // We have to construct the cmd args piecemeal since we need to preserve
+        // the order
+        let mut cmd_args: Vec<String> = generate_cmd_args(&option_value_map_before);
+
+        // For this test, response file will
+        // have:
+        //      -shdev
+        //      -file file1 path/to/file2 /path/to/file3
+        //      -|test 1 2 3
+        //      -(tab)test2 3 4 5
+        //-shdev and -file are valid and should be processed
+        //-test and test2 have invalid chars so they should be ignored
+        // Should keep -comdev since its after @responsefile
+        cmd_args.push("@responsefile".to_string());
+        cmd_args.push("-comdev".to_string());
 
         let doom_options = DoomOptions::new(cmd_args);
 
         // Before response file. Should not be set
-        let wart_option: Option<&DoomOption> = doom_options.get_option_by_name("-wart");
-        assert!(wart_option.is_some());
+        for (option_name, values) in option_value_map_before {
+            let option: &DoomOption = doom_options
+                .get_option_by_name(option_name)
+                .unwrap_or_else(|| panic!("Could not find option {}", option_name));
+            assert!(!option.enabled);
 
-        let wart: &DoomOption = wart_option.unwrap();
-        assert!(wart.values.as_ref().is_none());
-
-        let devparm_option: Option<&DoomOption> = doom_options.get_option_by_name("-devparm");
-
-        let devparm: &DoomOption = devparm_option.unwrap();
-        assert!(devparm.values.as_ref().is_none());
-
-        let record_option: Option<&DoomOption> = doom_options.get_option_by_name("-record");
-        assert!(record_option.is_some());
-
-        let record: &DoomOption = record_option.unwrap();
-        assert!(record.values.as_ref().is_none());
+            for value in values {
+                assert!(!option.values.contains(&value.to_string()));
+            }
+        }
 
         // Start response file
-        let shdev_option: Option<&DoomOption> = doom_options.get_option_by_name("-shdev");
-        assert!(shdev_option.is_some());
+        let response_file_option_map: HashMap<&str, &[&str]> = HashMap::from([
+            ("-shdev", [].as_slice()),
+            (
+                "-file",
+                ["file1", "path/to/file2", "/path/to/file3"].as_slice(),
+            ),
+        ]);
 
-        let shdev: &DoomOption = shdev_option.unwrap();
-        assert!(shdev.values.as_ref().unwrap().eq("true"));
-        assert!(shdev.enabled());
-
-        let file_option: Option<&DoomOption> = doom_options.get_option_by_name("-file");
-        assert!(file_option.is_some());
-
-        let file: &DoomOption = file_option.unwrap();
-        assert!(file
-            .values
-            .as_ref()
-            .unwrap()
-            .eq("file1 path/to/file2 /path/to/file3"));
-        assert!(file.enabled());
+        for (option_name, values) in response_file_option_map {
+            let option: &DoomOption = doom_options
+                .get_option_by_name(option_name)
+                .unwrap_or_else(|| panic!("Could not find option {}", option_name));
+            for value in values {
+                assert!(option.values.contains(&value.to_string()));
+                assert!(option.enabled);
+            }
+        }
         // End response File
 
         // After response file
@@ -486,8 +416,7 @@ mod tests {
         assert!(comdev_option.is_some());
 
         let comdev: &DoomOption = comdev_option.unwrap();
-        assert!(comdev.values.as_ref().unwrap().eq("true"));
-        assert!(comdev.enabled());
+        assert!(comdev.enabled);
     }
 
     #[test]
