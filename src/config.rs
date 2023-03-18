@@ -71,6 +71,7 @@ pub struct Config<'a> {
     pub game_type: GameType,
     pub game_difficulty: GameDifficulty,
     pub language: Language,
+    pub auto_start: bool,
 }
 
 impl<'a> Config<'a> {
@@ -110,6 +111,8 @@ impl<'a> Config<'a> {
     }
 
     pub fn new(doom_options: &DoomOptions) -> Self {
+        let auto_start: bool = is_auto_start(doom_options);
+
         let game_difficulty: GameDifficulty = if doom_options.is_option_enabled("-skill") {
             let skill_option: &DoomOption = doom_options.get_option_by_name("-skill").unwrap();
             match skill_option.values.get(0).unwrap().as_str() {
@@ -170,6 +173,7 @@ impl<'a> Config<'a> {
             game_type: GameType::Unknown,
             game_difficulty,
             language: Language::English,
+            auto_start
         }
     }
 }
@@ -190,6 +194,10 @@ fn get_iwad_name_from_iwad_paths(iwad_paths: &[PathBuf]) -> &str {
         .unwrap_or("")
 }
 
+fn is_auto_start(doom_options: &DoomOptions) -> bool {
+    doom_options.is_option_enabled("-skill")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -201,6 +209,7 @@ mod tests {
         assert_eq!(config.game_type, GameType::Unknown);
         assert_eq!(config.language, Language::English);
         assert_eq!(config.game_difficulty, GameDifficulty::Medium);
+        assert_eq!(config.auto_start, false);
     }
 
     #[test]
@@ -215,6 +224,7 @@ mod tests {
 
             let config: Config = Config::new(&doom_options);
             assert_eq!(config.game_difficulty as u8, enum_value);
+            assert_eq!(config.auto_start, true);
         }
     }
 
@@ -318,6 +328,7 @@ mod tests {
             game_type: GameType::DoomIShareware,
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
+            auto_start: false
         };
 
         assert!(config.game_title().contains("DOOM Shareware Startup v1.0"));
@@ -346,6 +357,7 @@ mod tests {
             game_type: GameType::Unknown,
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
+            auto_start: false
         };
 
         // Test that they are set to the correct game type based on wad name
@@ -379,6 +391,7 @@ mod tests {
             game_type: GameType::Unknown,
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
+            auto_start: false
         };
 
         // Test that they are set to the correct game type based on wad name
