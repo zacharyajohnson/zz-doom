@@ -190,12 +190,25 @@ impl<'a> Config<'a> {
         Config {
             config_file_path,
             wad_files_dir,
-            engine_version: env!("CARGO_PKG_VERSION"),
-            game_type: GameType::Unknown,
             game_difficulty,
-            language: Language::English,
             auto_start,
             start_episode,
+            ..Default::default()
+        }
+    }
+}
+
+impl<'a> Default for Config<'a> {
+    fn default() -> Self {
+        Self {
+            config_file_path: Default::default(),
+            wad_files_dir: Default::default(),
+            engine_version: env!("CARGO_PKG_VERSION"),
+            game_type: GameType::Unknown,
+            game_difficulty: GameDifficulty::Medium,
+            language: Language::English,
+            auto_start: false,
+            start_episode: 1,
         }
     }
 }
@@ -362,46 +375,27 @@ mod tests {
 
     #[test]
     fn test_config_game_title_returns_correct_values() {
-        let mut config: Config = Config {
-            config_file_path: PathBuf::from(""),
-            wad_files_dir: PathBuf::from(""),
-            engine_version: "1.0",
-            game_type: GameType::DoomIShareware,
-            game_difficulty: GameDifficulty::Medium,
-            language: Language::English,
-            auto_start: false,
-            start_episode: 1,
-        };
+        let mut config: Config = Default::default();
 
-        assert!(config.game_title().contains("DOOM Shareware Startup v1.0"));
+        config.game_type = GameType::DoomIShareware;
+        assert!(config.game_title().contains("DOOM Shareware Startup"));
 
         config.game_type = GameType::DoomIRegistered;
-        assert!(config.game_title().contains("DOOM Registered Startup v1.0"));
+        assert!(config.game_title().contains("DOOM Registered Startup"));
 
         config.game_type = GameType::UltimateDoom;
-        assert!(config
-            .game_title()
-            .contains("The Ultimate DOOM Startup v1.0"));
+        assert!(config.game_title().contains("The Ultimate DOOM Startup"));
 
         config.game_type = GameType::DoomII;
-        assert!(config.game_title().contains("DOOM 2: Hell on Earth v1.0"));
+        assert!(config.game_title().contains("DOOM 2: Hell on Earth"));
 
         config.game_type = GameType::Unknown;
-        assert!(config.game_title().contains("Public DOOM - v1.0"));
+        assert!(config.game_title().contains("Public DOOM"));
     }
 
     #[test]
     fn test_config_set_langauge_by_iwad_paths_sets_correct_values() {
-        let mut config: Config = Config {
-            config_file_path: PathBuf::from(""),
-            wad_files_dir: PathBuf::from(""),
-            engine_version: "",
-            game_type: GameType::Unknown,
-            game_difficulty: GameDifficulty::Medium,
-            language: Language::English,
-            auto_start: false,
-            start_episode: 1,
-        };
+        let mut config: Config = Default::default();
 
         // Test that they are set to the correct game type based on wad name
         config.set_language_by_iwad_paths(&[PathBuf::from("doom.wad")]);
@@ -427,16 +421,7 @@ mod tests {
     }
     #[test]
     fn test_config_set_game_type_by_iwad_paths_sets_correct_values() {
-        let mut config: Config = Config {
-            config_file_path: PathBuf::from(""),
-            wad_files_dir: PathBuf::from(""),
-            engine_version: "",
-            game_type: GameType::Unknown,
-            game_difficulty: GameDifficulty::Medium,
-            language: Language::English,
-            auto_start: false,
-            start_episode: 1,
-        };
+        let mut config: Config = Default::default();
 
         // Test that they are set to the correct game type based on wad name
         config.set_game_type_by_iwad_paths(&[PathBuf::from("doom1.wad")]);
