@@ -72,6 +72,7 @@ pub struct Config<'a> {
     pub game_difficulty: GameDifficulty,
     pub language: Language,
     pub auto_start: bool,
+    pub start_episode: u32
 }
 
 impl<'a> Config<'a> {
@@ -127,6 +128,14 @@ impl<'a> Config<'a> {
             GameDifficulty::Medium
         };
 
+        let start_episode: u32 = if doom_options.is_option_enabled("-episode") {
+            let episode_option: &DoomOption = doom_options.get_option_by_name("-episode").unwrap();
+            let value: u32 = episode_option.values.get(0).unwrap().parse::<u32>().unwrap();
+            value
+        } else {
+            1
+        };
+
         let config_file_path = if doom_options.is_option_enabled("-shdev")
             || doom_options.is_option_enabled("-regdev")
             || doom_options.is_option_enabled("-comdev")
@@ -173,7 +182,8 @@ impl<'a> Config<'a> {
             game_type: GameType::Unknown,
             game_difficulty,
             language: Language::English,
-            auto_start
+            auto_start,
+            start_episode
         }
     }
 }
@@ -195,7 +205,7 @@ fn get_iwad_name_from_iwad_paths(iwad_paths: &[PathBuf]) -> &str {
 }
 
 fn is_auto_start(doom_options: &DoomOptions) -> bool {
-    doom_options.is_option_enabled("-skill")
+    doom_options.is_option_enabled("-skill") || doom_options.is_option_enabled("-episode")
 }
 
 #[cfg(test)]
@@ -210,6 +220,7 @@ mod tests {
         assert_eq!(config.language, Language::English);
         assert_eq!(config.game_difficulty, GameDifficulty::Medium);
         assert_eq!(config.auto_start, false);
+        assert_eq!(config.start_episode, 1);
     }
 
     #[test]
@@ -228,6 +239,7 @@ mod tests {
         }
     }
 
+
     #[test]
     #[should_panic]
     fn test_config_new_game_difficulty_with_skill_option_value_below_min_value() {
@@ -242,6 +254,24 @@ mod tests {
         let cmd_args: Vec<String> = vec![String::from("-skill"), String::from("6")];
         let doom_options: DoomOptions = DoomOptions::new(cmd_args);
         Config::new(&doom_options);
+    }
+
+    #[test]
+    fn test_config_new_start_episode_set_based_on_episode_option_value() {
+            let cmd_args: Vec<String> = vec![String::from("-episode"), String::from("5")];
+            let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+            let config: Config = Config::new(&doom_options);
+
+            assert_eq!(config.start_episode, 5);
+            assert_eq!(config.auto_start, true);
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_config_new_start_episode_when_invalid_number_for_episode_option_value() {
+            let cmd_args: Vec<String> = vec![String::from("-episode"), String::from("Hello")];
+            let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+            Config::new(&doom_options);
     }
 
     #[test]
@@ -328,7 +358,8 @@ mod tests {
             game_type: GameType::DoomIShareware,
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
-            auto_start: false
+            auto_start: false,
+            start_episode: 1
         };
 
         assert!(config.game_title().contains("DOOM Shareware Startup v1.0"));
@@ -357,7 +388,8 @@ mod tests {
             game_type: GameType::Unknown,
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
-            auto_start: false
+            auto_start: false,
+            start_episode: 1
         };
 
         // Test that they are set to the correct game type based on wad name
@@ -391,7 +423,8 @@ mod tests {
             game_type: GameType::Unknown,
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
-            auto_start: false
+            auto_start: false,
+            start_episode: 1
         };
 
         // Test that they are set to the correct game type based on wad name
