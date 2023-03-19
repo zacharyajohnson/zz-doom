@@ -136,6 +136,8 @@ impl<'a> Config<'a> {
             1
         };
 
+        //TODO Put warp/wart flag logic here so it overrides the -episode flag values like in the original
+
         let config_file_path = if doom_options.is_option_enabled("-shdev")
             || doom_options.is_option_enabled("-regdev")
             || doom_options.is_option_enabled("-comdev")
