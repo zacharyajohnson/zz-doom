@@ -72,7 +72,7 @@ pub struct Config<'a> {
     pub game_difficulty: GameDifficulty,
     pub language: Language,
     pub auto_start: bool,
-    pub start_episode: u32
+    pub start_episode: u32,
 }
 
 impl<'a> Config<'a> {
@@ -116,7 +116,12 @@ impl<'a> Config<'a> {
 
         let game_difficulty: GameDifficulty = if doom_options.is_option_enabled("-skill") {
             let skill_option: &DoomOption = doom_options.get_option_by_name("-skill").unwrap();
-            match skill_option.values.get(0).unwrap().as_str() {
+            match skill_option
+                .values
+                .get(0)
+                .unwrap_or_else(|| panic!("Unable to get value for -skill option"))
+                .as_str()
+            {
                 "1" => GameDifficulty::Baby,
                 "2" => GameDifficulty::Easy,
                 "3" => GameDifficulty::Medium,
@@ -130,7 +135,12 @@ impl<'a> Config<'a> {
 
         let start_episode: u32 = if doom_options.is_option_enabled("-episode") {
             let episode_option: &DoomOption = doom_options.get_option_by_name("-episode").unwrap();
-            let value: u32 = episode_option.values.get(0).unwrap().parse::<u32>().unwrap();
+            let value: u32 = episode_option
+                .values
+                .get(0)
+                .unwrap_or_else(|| panic!("Unable to get value for -episode option"))
+                .parse::<u32>()
+                .unwrap_or_else(|_e| panic!("Unable to parse -episode value to number"));
             value
         } else {
             1
@@ -185,7 +195,7 @@ impl<'a> Config<'a> {
             game_difficulty,
             language: Language::English,
             auto_start,
-            start_episode
+            start_episode,
         }
     }
 }
@@ -241,7 +251,6 @@ mod tests {
         }
     }
 
-
     #[test]
     #[should_panic]
     fn test_config_new_game_difficulty_with_skill_option_value_below_min_value() {
@@ -260,20 +269,20 @@ mod tests {
 
     #[test]
     fn test_config_new_start_episode_set_based_on_episode_option_value() {
-            let cmd_args: Vec<String> = vec![String::from("-episode"), String::from("5")];
-            let doom_options: DoomOptions = DoomOptions::new(cmd_args);
-            let config: Config = Config::new(&doom_options);
+        let cmd_args: Vec<String> = vec![String::from("-episode"), String::from("5")];
+        let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+        let config: Config = Config::new(&doom_options);
 
-            assert_eq!(config.start_episode, 5);
-            assert_eq!(config.auto_start, true);
+        assert_eq!(config.start_episode, 5);
+        assert_eq!(config.auto_start, true);
     }
 
     #[test]
     #[should_panic]
     fn test_config_new_start_episode_when_invalid_number_for_episode_option_value() {
-            let cmd_args: Vec<String> = vec![String::from("-episode"), String::from("Hello")];
-            let doom_options: DoomOptions = DoomOptions::new(cmd_args);
-            Config::new(&doom_options);
+        let cmd_args: Vec<String> = vec![String::from("-episode"), String::from("Hello")];
+        let doom_options: DoomOptions = DoomOptions::new(cmd_args);
+        Config::new(&doom_options);
     }
 
     #[test]
@@ -361,7 +370,7 @@ mod tests {
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
             auto_start: false,
-            start_episode: 1
+            start_episode: 1,
         };
 
         assert!(config.game_title().contains("DOOM Shareware Startup v1.0"));
@@ -391,7 +400,7 @@ mod tests {
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
             auto_start: false,
-            start_episode: 1
+            start_episode: 1,
         };
 
         // Test that they are set to the correct game type based on wad name
@@ -426,7 +435,7 @@ mod tests {
             game_difficulty: GameDifficulty::Medium,
             language: Language::English,
             auto_start: false,
-            start_episode: 1
+            start_episode: 1,
         };
 
         // Test that they are set to the correct game type based on wad name
