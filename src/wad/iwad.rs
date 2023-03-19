@@ -3,7 +3,10 @@ use crate::{
     option::DoomOptions,
     util,
 };
-use std::path::{Path, PathBuf};
+use std::{
+    ffi::OsStr,
+    path::{Path, PathBuf},
+};
 
 pub struct IWADInfo<'a> {
     pub name: &'a str,
@@ -102,4 +105,20 @@ pub fn find_valid_iwad_file_paths(
     }
 
     files_to_process
+}
+
+pub fn get_iwad_name_from_iwad_paths(iwad_paths: &[PathBuf]) -> &str {
+    iwad_paths
+        .iter()
+        .find_map(|path_buf| {
+            if path_buf
+                .extension()
+                .map_or(false, |extension| extension.eq("wad"))
+            {
+                path_buf.file_name().unwrap_or(OsStr::new("")).to_str()
+            } else {
+                None
+            }
+        })
+        .unwrap_or("")
 }

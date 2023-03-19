@@ -1,10 +1,9 @@
 use std::env;
-use std::ffi::OsStr;
 use std::path::PathBuf;
 
 use crate::option::{DoomOption, DoomOptions};
 use crate::util;
-use crate::wad::iwad::VALID_IWADS;
+use crate::wad::iwad;
 
 pub const DEV_DATA_FILE_PREFIX: &str = "devdata";
 pub const DEV_CONFIG_FILE_NAME: &str = "devdatadefault.cfg";
@@ -19,7 +18,7 @@ pub enum Language {
 
 impl Language {
     pub fn from_wad_file_name(wad_file_name: &str) -> Language {
-        VALID_IWADS
+        iwad::VALID_IWADS
             .iter()
             .find(|iwad| wad_file_name.contains(iwad.name))
             .map(|iwad| iwad.language.clone())
@@ -56,7 +55,7 @@ pub enum GameDifficulty {
 
 impl GameType {
     pub fn from_wad_file_name(wad_file_name: &str) -> GameType {
-        VALID_IWADS
+        iwad::VALID_IWADS
             .iter()
             .find(|iwad| wad_file_name.contains(iwad.name))
             .map(|iwad| iwad.game_type.clone())
@@ -102,12 +101,12 @@ impl<'a> Config<'a> {
     }
 
     pub fn set_game_type_by_iwad_paths(&mut self, iwad_paths: &[PathBuf]) {
-        let iwad_name = get_iwad_name_from_iwad_paths(iwad_paths);
+        let iwad_name = iwad::get_iwad_name_from_iwad_paths(iwad_paths);
         self.game_type = GameType::from_wad_file_name(iwad_name);
     }
 
     pub fn set_language_by_iwad_paths(&mut self, iwad_paths: &[PathBuf]) {
-        let iwad_name: &str = get_iwad_name_from_iwad_paths(iwad_paths);
+        let iwad_name: &str = iwad::get_iwad_name_from_iwad_paths(iwad_paths);
         self.language = Language::from_wad_file_name(iwad_name);
     }
 
@@ -211,22 +210,6 @@ impl<'a> Default for Config<'a> {
             start_episode: 1,
         }
     }
-}
-
-fn get_iwad_name_from_iwad_paths(iwad_paths: &[PathBuf]) -> &str {
-    iwad_paths
-        .iter()
-        .find_map(|path_buf| {
-            if path_buf
-                .extension()
-                .map_or(false, |extension| extension.eq("wad"))
-            {
-                path_buf.file_name().unwrap_or(OsStr::new("")).to_str()
-            } else {
-                None
-            }
-        })
-        .unwrap_or("")
 }
 
 fn is_auto_start(doom_options: &DoomOptions) -> bool {
@@ -482,7 +465,7 @@ mod tests {
 
     #[test]
     fn test_game_type_from_wad_file_name_returns_correct_values() {
-        for iwad in &VALID_IWADS {
+        for iwad in &iwad::VALID_IWADS {
             assert_eq!(GameType::from_wad_file_name(iwad.name), iwad.game_type);
         }
 
@@ -496,7 +479,7 @@ mod tests {
 
     #[test]
     fn test_language_from_wad_file_name_returns_correct_values() {
-        for iwad in &VALID_IWADS {
+        for iwad in &iwad::VALID_IWADS {
             assert_eq!(Language::from_wad_file_name(iwad.name), iwad.language);
         }
 
