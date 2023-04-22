@@ -27,4 +27,9 @@ fn main() {
     if doom_options.is_option_enabled("-devparm") {
         println!("Development mode ON.");
     }
+
+    for wad_path in wads_to_process {
+        // Original engine didn't error out if it had issues reading a file
+        wad::process_wad_file(&wad_path).unwrap_or_else(|e| println!("{e}"))
+    }
 }
