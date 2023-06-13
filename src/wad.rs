@@ -1,4 +1,4 @@
-use std::{path::Path, fs::File, io::{Read, Seek, self, SeekFrom}, fmt::Error};
+use std::{path::{Path, PathBuf}, fs::File, io::{Read, Seek, self, SeekFrom}, fmt::Error};
 
 pub mod iwad;
 
@@ -36,13 +36,6 @@ pub struct WadHeader {
     pub info_table_ofs: u32,
 }
 
-pub struct Lump {
-    pub name: String,
-    pub file_handle: String,
-    pub file_position: u32,
-    pub size: u32
-}
-
 impl WadHeader {
     fn from(file: &mut File) -> Result<Self, io::Error> {
         let mut id: [u8; 4] = [0; 4];
@@ -65,18 +58,59 @@ impl WadHeader {
     }
 }
 
-pub fn process_wad_file(file_path: &Path) -> Result<(), io::Error> {
+pub struct Lump {
+    pub name: String,
+    pub file_handle: String,
+    pub file_position: u32,
+    pub size: u32
+}
 
-    if file_path.starts_with("~") {
-        
-    }
+pub struct Wad {
+    pub name: String,
+    pub file_path: PathBuf,
+    pub header: WadHeader,
+    pub lumps: Vec<Lump>,
+    pub should_reload: bool
+}
+
+pub fn process_wad_file(file_path: &Path) -> Result<Vec<Lump>, io::Error> {
+    let should_reload: bool = if file_path.starts_with("~") {
+        true
+    } else {
+        false
+    };
 
     let mut file: File = File::open(file_path)?;
 
     let wad_header: WadHeader = WadHeader::from(&mut file)?;
 
     file.seek(SeekFrom::Start(wad_header.info_table_ofs.into()))?;
-    Ok(())
+
+    let mut lumps: Vec<Lump> = Vec::new();
+
+    for i in 0..wad_header.num_lumps {
+        let mut file_position: [u8; 4] = [0; 4];
+        let mut size: [u8; 4] = [0; 4];
+        let mut name: [u8; 8] = [0; 8];
+
+        file.read(&mut file_position)?;
+        file.read(&mut size)?;
+        file.read(&mut name)?;
+
+        let file_position: u32 = u32::from_le_bytes(file_position);
+        let size: u32 = u32::from_le_bytes(size);
+        let name: String = String::from_utf8_lossy(&name).to_string();
+
+        let lump: Lump = Lump { name, file_handle: String::from(""), file_position, size};
+
+        println!("Lump {} = file_pos: {}, size: {}, name: {}",i, lump.file_position, lump.size, lump.name);
+        lumps.push(lump);
+
+    }
+
+    let wad: Wad = Wad { name, file_path, header, lumps, should_reload}
+    Ok()
+
 }
 
 #[cfg(test)]
