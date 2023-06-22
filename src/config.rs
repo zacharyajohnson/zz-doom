@@ -38,7 +38,7 @@ pub enum GameType {
     UltimateDoom,
     // DOOM II/ French Version
     // and Final DOOM(The Plutonia Experiment and TNT: Evilution)
-    // Was Commerical enum
+    // Was Commercial enum
     DoomII,
     // Everything else
     Unknown,
@@ -377,7 +377,7 @@ mod tests {
     }
 
     #[test]
-    fn test_config_set_langauge_by_iwad_paths_sets_correct_values() {
+    fn test_config_set_language_by_iwad_paths_sets_correct_values() {
         let mut config: Config = Default::default();
 
         // Test that they are set to the correct game type based on wad name
