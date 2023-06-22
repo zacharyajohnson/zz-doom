@@ -8,6 +8,8 @@ mod wad;
 use config::Config;
 use option::DoomOptions;
 
+use crate::wad::Lump;
+
 fn main() {
     // Skipping the first arg as this is the executable name
     // and we don't want that
@@ -26,5 +28,15 @@ fn main() {
 
     if doom_options.is_option_enabled("-devparm") {
         println!("Development mode ON.");
+    }
+
+    let mut lumps: Vec<Lump> = Vec::new();
+
+    for wad_path in wads_to_process {
+        // Original engine didn't error out if it had issues reading a file
+        match wad::process_file(&wad_path) {
+            Ok(mut wad_lumps) => lumps.append(&mut wad_lumps),
+            Err(error) => eprintln!("Error processing file {}.\n {}", wad_path.display(), error),
+        }
     }
 }
