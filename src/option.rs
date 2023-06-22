@@ -201,7 +201,7 @@ mod tests {
     // them for us. This is with no cmd line args passed in to check if
     // they are always there.
     #[test]
-    fn test_doom_options_new_intializes_with_default_doom_options() {
+    fn test_doom_options_new_initializes_with_default_doom_options() {
         let doom_options: DoomOptions = DoomOptions::new(Vec::new());
 
         assert!(doom_options.options.iter().all(|option| {
@@ -334,9 +334,9 @@ mod tests {
         }
     }
 
-    // Read arguments in from a response file denoated
+    // Read arguments in from a response file denoted
     // by @response_file_path
-    // Relative paths for response file will always be interperted
+    // Relative paths for response file will always be interpreted
     // as starting at the dir the exe is located in
     // The response file will have one option and its values per line
     // Will drop all options passed into the command line before it
