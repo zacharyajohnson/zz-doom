@@ -122,3 +122,115 @@ pub fn get_iwad_name_from_iwad_paths(iwad_paths: &[PathBuf]) -> &str {
         })
         .unwrap_or("")
 }
+
+#[cfg(test)]
+mod tests {
+    use crate::option::DoomOptions;
+    use crate::wad::iwad::find_valid_iwad_file_paths;
+    use std::path::PathBuf;
+
+    #[test]
+    fn test_find_valid_iwad_file_paths_returns_correct_paths_for_shdev_option() {
+        let doom_options: DoomOptions = DoomOptions::new(vec![String::from("-shdev")]);
+        let expected_shdev_path_values: &[String] = &[
+            format!("{}doom1.wad", crate::config::DEV_DATA_FILE_PREFIX),
+            format!(
+                "{}cdata/texture1.lmp",
+                crate::config::DEV_MAPS_FOLDER_PREFIX
+            ),
+            format!("{}cdata/pnames.lmp", crate::config::DEV_MAPS_FOLDER_PREFIX),
+        ];
+
+        let actual_shdev_path_values: Vec<PathBuf> =
+            find_valid_iwad_file_paths(&PathBuf::from(""), &doom_options);
+
+        for expected_value in expected_shdev_path_values {
+            assert!(actual_shdev_path_values
+                .iter()
+                .any(|x| x.ends_with(expected_value)))
+        }
+
+        assert_eq!(
+            actual_shdev_path_values.len(),
+            expected_shdev_path_values.len()
+        );
+    }
+
+    #[test]
+    fn test_find_valid_iwad_file_paths_returns_correct_paths_for_regdev_option() {
+        let doom_options: DoomOptions = DoomOptions::new(vec![String::from("-regdev")]);
+        let expected_regdev_path_values: &[String] = &[
+            format!("{}doom.wad", crate::config::DEV_DATA_FILE_PREFIX),
+            format!(
+                "{}cdata/texture1.lmp",
+                crate::config::DEV_MAPS_FOLDER_PREFIX
+            ),
+            format!(
+                "{}cdata/texture2.lmp",
+                crate::config::DEV_MAPS_FOLDER_PREFIX
+            ),
+            format!("{}cdata/pnames.lmp", crate::config::DEV_MAPS_FOLDER_PREFIX),
+        ];
+
+        let actual_regdev_path_values: Vec<PathBuf> =
+            find_valid_iwad_file_paths(&PathBuf::from(""), &doom_options);
+
+        for expected_value in expected_regdev_path_values {
+            assert!(actual_regdev_path_values
+                .iter()
+                .any(|x| x.ends_with(expected_value)))
+        }
+
+        assert_eq!(
+            actual_regdev_path_values.len(),
+            expected_regdev_path_values.len()
+        );
+    }
+
+    #[test]
+    fn test_find_valid_iwad_file_paths_returns_correct_paths_for_comdev_option() {
+        let doom_options: DoomOptions = DoomOptions::new(vec![String::from("-comdev")]);
+        let expected_comdev_path_values: &[String] = &[
+            format!("{}doom2.wad", crate::config::DEV_DATA_FILE_PREFIX),
+            format!(
+                "{}cdata/texture1.lmp",
+                crate::config::DEV_MAPS_FOLDER_PREFIX
+            ),
+            format!("{}cdata/pnames.lmp", crate::config::DEV_MAPS_FOLDER_PREFIX),
+        ];
+
+        let actual_comdev_path_values: Vec<PathBuf> =
+            find_valid_iwad_file_paths(&PathBuf::from(""), &doom_options);
+
+        for expected_value in expected_comdev_path_values {
+            assert!(actual_comdev_path_values
+                .iter()
+                .any(|x| x.ends_with(expected_value)))
+        }
+
+        assert_eq!(
+            actual_comdev_path_values.len(),
+            expected_comdev_path_values.len()
+        );
+    }
+
+    #[test]
+    fn test_find_valid_iwad_file_paths_returns_path_for_iwad() {
+        let mut wad_files_dir: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        wad_files_dir.push("tests/resource");
+
+        let files_to_process: Vec<PathBuf> =
+            find_valid_iwad_file_paths(&wad_files_dir, &DoomOptions::new(Vec::new()));
+
+        let file_to_process: &PathBuf = files_to_process.get(0).unwrap();
+
+        let mut expected_file_path: PathBuf = wad_files_dir.clone();
+        expected_file_path.push("doom.wad");
+
+        assert_eq!(files_to_process.len(), 1);
+        assert_eq!(
+            file_to_process.to_str().unwrap(),
+            expected_file_path.to_str().unwrap()
+        )
+    }
+}
