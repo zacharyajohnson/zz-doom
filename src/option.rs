@@ -84,10 +84,8 @@ fn get_response_file_options(file_path: PathBuf) -> Vec<String> {
     };
 
     let lines: Vec<String> = std::fs::read_to_string(&final_file_path)
-        .expect(&format!(
-            "Unable to find response file: {}",
-            final_file_path.display()
-        ))
+        .unwrap_or_else(|_| panic!("Unable to find response file: {}",
+            final_file_path.display()))
         .lines()
         .map(|x| x.to_owned())
         .collect();
@@ -99,7 +97,7 @@ fn get_response_file_options(file_path: PathBuf) -> Vec<String> {
         .filter(|x| {
             x.chars().all(|c| {
                 if c.is_ascii() {
-                    c >= ' ' && c <= 'z'
+                    (' '..='z').contains(&c)
                 } else {
                     false
                 }
@@ -127,10 +125,10 @@ fn create_options(cmd_args: Vec<String>) -> Vec<DoomOption> {
 
     let args_to_process: Vec<String> = cmd_args
         .iter()
-        .position(|x| x.starts_with("@"))
+        .position(|x| x.starts_with('@'))
         .map(|index| {
             let mut response_file_args: Vec<String> =
-                get_response_file_options(PathBuf::from(cmd_args[index].trim_start_matches("@")));
+                get_response_file_options(PathBuf::from(cmd_args[index].trim_start_matches('@')));
 
             // Grab all the args after response and put it into the args list
             // to process since thats how the original game behaves
@@ -157,7 +155,7 @@ fn create_options(cmd_args: Vec<String>) -> Vec<DoomOption> {
 
         let mut value_index = 0;
 
-        while arg_index != args_to_process.len() && !args_to_process[arg_index].starts_with("-") {
+        while arg_index != args_to_process.len() && !args_to_process[arg_index].starts_with('-') {
             value_index += 1;
 
             option_values.push(args_to_process[arg_index].clone());
