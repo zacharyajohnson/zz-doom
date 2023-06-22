@@ -84,8 +84,12 @@ fn get_response_file_options(file_path: PathBuf) -> Vec<String> {
     };
 
     let lines: Vec<String> = std::fs::read_to_string(&final_file_path)
-        .unwrap_or_else(|_| panic!("Unable to find response file: {}",
-            final_file_path.display()))
+        .unwrap_or_else(|_| {
+            panic!(
+                "Unable to find response file: {}",
+                final_file_path.display()
+            )
+        })
         .lines()
         .map(|x| x.to_owned())
         .collect();
@@ -319,9 +323,7 @@ mod tests {
         let doom_options = DoomOptions::new(cmd_args);
 
         for (option_name, values) in option_value_map {
-            let option: &DoomOption = doom_options
-                .get_option_by_name(option_name)
-                .unwrap_or_else(|| panic!("Could not find option {}", option_name));
+            let option: &DoomOption = doom_options.get_option_by_name(option_name).unwrap();
 
             for value in values {
                 assert!(option.values.contains(&value.to_string()));
@@ -345,11 +347,9 @@ mod tests {
     // not be processed
     #[test]
     fn test_doom_options_new_sets_doom_options_from_response_file() {
-        let mut exe_parent_path: PathBuf = util::exe_parent_path();
-        exe_parent_path.push("responsefile");
-
-        std::fs::copy("tests/resource/responsefile", exe_parent_path)
-            .unwrap_or_else(|error| panic!("{}", error));
+        let mut response_file_path: PathBuf =
+            PathBuf::from(String::from('@') + env!("CARGO_MANIFEST_DIR"));
+        response_file_path.push("tests/resource/responsefile");
 
         // Should be dropped since
         // it is before @responsefile
@@ -369,19 +369,18 @@ mod tests {
         //      -file file1 path/to/file2 /path/to/file3
         //      -|test 1 2 3
         //      -(tab)test2 3 4 5
+        //      -一test3 6 7 8
         //-shdev and -file are valid and should be processed
-        //-test and test2 have invalid chars so they should be ignored
+        //-test,test2 and test3 have invalid chars so they should be ignored
         // Should keep -comdev since its after @responsefile
-        cmd_args.push("@responsefile".to_string());
+        cmd_args.push(response_file_path.to_str().unwrap().to_string());
         cmd_args.push("-comdev".to_string());
 
         let doom_options = DoomOptions::new(cmd_args);
 
         // Before response file. Should not be set
         for (option_name, values) in option_value_map_before {
-            let option: &DoomOption = doom_options
-                .get_option_by_name(option_name)
-                .unwrap_or_else(|| panic!("Could not find option {}", option_name));
+            let option: &DoomOption = doom_options.get_option_by_name(option_name).unwrap();
             assert!(!option.enabled);
 
             for value in values {
@@ -399,9 +398,7 @@ mod tests {
         ]);
 
         for (option_name, values) in response_file_option_map {
-            let option: &DoomOption = doom_options
-                .get_option_by_name(option_name)
-                .unwrap_or_else(|| panic!("Could not find option {}", option_name));
+            let option: &DoomOption = doom_options.get_option_by_name(option_name).unwrap();
             for value in values {
                 assert!(option.values.contains(&value.to_string()));
                 assert!(option.enabled);
