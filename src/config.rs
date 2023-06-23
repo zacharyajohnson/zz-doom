@@ -44,15 +44,6 @@ pub enum GameType {
     Unknown,
 }
 
-#[derive(Debug, PartialEq, Eq)]
-pub enum GameDifficulty {
-    Baby,
-    Easy,
-    Medium,
-    Hard,
-    Nightmare,
-}
-
 impl GameType {
     pub fn from_wad_file_name(wad_file_name: &str) -> GameType {
         iwad::VALID_IWADS
@@ -61,6 +52,15 @@ impl GameType {
             .map(|iwad| iwad.game_type.clone())
             .unwrap_or(GameType::Unknown)
     }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum GameDifficulty {
+    Baby,
+    Easy,
+    Medium,
+    Hard,
+    Nightmare,
 }
 
 pub struct Config<'a> {
@@ -115,12 +115,7 @@ impl<'a> Config<'a> {
 
         let game_difficulty: GameDifficulty = if doom_options.is_option_enabled("-skill") {
             let skill_option: &DoomOption = doom_options.get_option_by_name("-skill").unwrap();
-            match skill_option
-                .values
-                .get(0)
-                .unwrap_or_else(|| panic!("Unable to get value for -skill option"))
-                .as_str()
-            {
+            match skill_option.values.get(0).unwrap().as_str() {
                 "1" => GameDifficulty::Baby,
                 "2" => GameDifficulty::Easy,
                 "3" => GameDifficulty::Medium,
@@ -137,7 +132,7 @@ impl<'a> Config<'a> {
             let value: u32 = episode_option
                 .values
                 .get(0)
-                .unwrap_or_else(|| panic!("Unable to get value for -episode option"))
+                .unwrap()
                 .parse::<u32>()
                 .unwrap_or_else(|_e| panic!("Unable to parse -episode value to number"));
             value
@@ -478,6 +473,16 @@ mod tests {
     }
 
     #[test]
+    fn test_game_type_implements_debug_trait() {
+        println!("{:?}", GameType::DoomIRegistered);
+    }
+
+    #[test]
+    fn test_language_implements_debug_trait() {
+        println!("{:?}", Language::English);
+    }
+
+    #[test]
     fn test_language_from_wad_file_name_returns_correct_values() {
         for iwad in &iwad::VALID_IWADS {
             assert_eq!(Language::from_wad_file_name(iwad.name), iwad.language);
@@ -487,5 +492,10 @@ mod tests {
             Language::English,
             Language::from_wad_file_name("devdatadoom.wad")
         );
+    }
+
+    #[test]
+    fn test_game_difficulty_implements_debug_trait() {
+        println!("{:?}", GameDifficulty::Medium);
     }
 }
