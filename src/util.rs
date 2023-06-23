@@ -4,14 +4,17 @@ use std::{
 };
 
 pub fn exe_parent_path() -> PathBuf {
-    match env::current_exe() {
-        Ok(exe_path) => {
-            let exe_current_dir: &Path = exe_path.parent().unwrap_or(exe_path.as_path());
-            PathBuf::from(exe_current_dir)
-        }
-        Err(e) => panic!(
-            "Unable to access directory where game was started.\n Error: {}",
-            e
-        ),
+    let exe_path: PathBuf = env::current_exe().unwrap();
+    let exe_current_dir: &Path = exe_path.parent().unwrap_or(exe_path.as_path());
+    PathBuf::from(exe_current_dir)
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::util::exe_parent_path;
+
+    #[test]
+    fn test_exe_parent_path_returns_value() {
+        exe_parent_path();
     }
 }
