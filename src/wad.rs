@@ -255,7 +255,7 @@ mod tests {
     use std::path::PathBuf;
 
     #[test]
-    fn test_wad_error_display_is_implemented() {
+    fn test_wad_error_implements_display_trait() {
         let wad_errors: Vec<WadError> = vec![
             WadError::InvalidFileExtension(PathBuf::from("")),
             WadError::IoError(String::from("test")),
@@ -268,7 +268,7 @@ mod tests {
     }
 
     #[test]
-    fn test_wad_error_debug_is_implemented() {
+    fn test_wad_error_implements_debug_trait() {
         let wad_error: WadError = WadError::InvalidFileExtension(PathBuf::from("test/"));
         println!("{:?}", wad_error);
     }
@@ -280,7 +280,7 @@ mod tests {
     }
 
     #[test]
-    fn test_wad_id_display_trait_is_implemented() {
+    fn test_wad_id_implements_display_trait() {
         println!("{:?}", WadID::Iwad);
     }
 
