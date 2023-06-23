@@ -98,7 +98,7 @@ impl Display for WadError {
 
 impl From<io::Error> for WadError {
     fn from(value: io::Error) -> Self {
-        WadError::IoError(value.to_string())
+        WadError::IoError(format!("{:?}", value))
     }
 }
 
@@ -110,21 +110,21 @@ pub struct WadHeader {
 
 impl WadHeader {
     fn from(file: &mut File) -> Result<Self, WadError> {
-        let mut id: [u8; 4] = [0; 4];
-        let mut num_lumps: [u8; 4] = [0; 4];
-        let mut lump_location_offset: [u8; 4] = [0; 4];
+        println!("Processing Wad Header...");
 
-        file.read_exact(&mut id)?;
-        file.read_exact(&mut num_lumps)?;
-        file.read_exact(&mut lump_location_offset)?;
+        let mut wad_header_data: [u8; 12] = [0; 12];
+        file.read_exact(&mut wad_header_data)?;
+
+        let id: [u8; 4] = wad_header_data[0..=3].try_into().unwrap();
+        let num_lumps: [u8; 4] = wad_header_data[4..=7].try_into().unwrap();
+        let lump_location_offset: [u8; 4] = wad_header_data[8..=11].try_into().unwrap();
 
         let id: WadID = WadID::from(String::from_utf8_lossy(&id).to_string());
-
         let num_lumps: u32 = u32::from_le_bytes(num_lumps);
         let lump_location_offset: u32 = u32::from_le_bytes(lump_location_offset);
 
         println!(
-            "Creating Wad Header: ID: {}, Number of Lumps: {}, Lump Location Offset: {}",
+            "Creating Wad Header - ID: {}, Number of Lumps: {}, Lump Location Offset: {}",
             id.to_str(),
             num_lumps,
             lump_location_offset
@@ -195,18 +195,18 @@ fn process_wad_file(file_info: FileInfo) -> Result<Vec<Lump>, WadError> {
 
     let wad_header: WadHeader = WadHeader::from(&mut file)?;
 
-    file.seek(SeekFrom::Start(wad_header.lump_location_offset.into()))?;
+    file.seek(SeekFrom::Start(wad_header.lump_location_offset.into()))
+        .unwrap();
 
     let mut lumps: Vec<Lump> = Vec::new();
 
     for _ in 0..wad_header.num_lumps {
-        let mut file_position: [u8; 4] = [0; 4];
-        let mut size: [u8; 4] = [0; 4];
-        let mut name: [u8; 8] = [0; 8];
+        let mut lump_data: [u8; 16] = [0; 16];
+        file.read_exact(&mut lump_data)?;
 
-        file.read_exact(&mut file_position)?;
-        file.read_exact(&mut size)?;
-        file.read_exact(&mut name)?;
+        let file_position: [u8; 4] = lump_data[0..=3].try_into().unwrap();
+        let size: [u8; 4] = lump_data[4..=7].try_into().unwrap();
+        let name: [u8; 8] = lump_data[8..=15].try_into().unwrap();
 
         let file_position: u32 = u32::from_le_bytes(file_position);
         let size: u32 = u32::from_le_bytes(size);
@@ -248,8 +248,9 @@ fn process_lump_file(file_info: FileInfo) -> Result<Vec<Lump>, WadError> {
 
 #[cfg(test)]
 mod tests {
-    use crate::wad::{process_file, Lump, WadError, WadID};
+    use crate::wad::{process_file, process_wad_file, FileInfo, Lump, WadError, WadID};
     use std::collections::HashMap;
+    use std::ffi::OsString;
     use std::fs::File;
     use std::path::PathBuf;
 
@@ -265,11 +266,24 @@ mod tests {
             println!("{}", wad_error);
         }
     }
+
+    #[test]
+    fn test_wad_error_debug_is_implemented() {
+        let wad_error: WadError = WadError::InvalidFileExtension(PathBuf::from("test/"));
+        println!("{:?}", wad_error);
+    }
+
     #[test]
     fn test_wad_error_from_supports_correct_exceptions() {
         // IO Error Conversion
         let _ = WadError::from(File::open(PathBuf::from("s")).err().unwrap());
     }
+
+    #[test]
+    fn test_wad_id_display_trait_is_implemented() {
+        println!("{:?}", WadID::Iwad);
+    }
+
     #[test]
     fn test_wad_id_from_supports_correct_values() {
         let supported_values: HashMap<String, WadID> = HashMap::from([
@@ -336,6 +350,48 @@ mod tests {
     }
 
     #[test]
+    fn test_process_file_returns_io_error_when_failing_to_read_wad_header_data() {
+        let mut wad_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        wad_path.push("tests/resource/doom.wad");
+
+        let wad_error: WadError = process_file(&wad_path).err().unwrap();
+        assert_eq!(
+            wad_error,
+            WadError::IoError(String::from(
+                "Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" }"
+            ))
+        );
+    }
+
+    #[test]
+    fn test_process_file_returns_io_error_when_failing_to_read_file_metadata() {
+        let mut wad_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        wad_path.push("unknown.wad");
+
+        let wad_error: WadError = process_file(&wad_path).err().unwrap();
+        assert_eq!(
+            wad_error,
+            WadError::IoError(String::from(
+                "Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+            ))
+        );
+    }
+
+    #[test]
+    fn test_process_file_returns_io_error_when_wad_header_specifies_incorrect_lump_count() {
+        let mut wad_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        wad_path.push("tests/resource/wad-header-only.wad");
+
+        let wad_error: WadError = process_file(&wad_path).err().unwrap();
+        assert_eq!(
+            wad_error,
+            WadError::IoError(String::from(
+                "Error { kind: UnexpectedEof, message: \"failed to fill whole buffer\" }"
+            ))
+        );
+    }
+
+    #[test]
     #[should_panic]
     fn test_process_file_panics_with_lump_file_name_greater_than_max_limit() {
         let mut lump_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
@@ -359,5 +415,26 @@ mod tests {
         let wad_error: WadError = process_file(&text_file_path).err().unwrap();
 
         assert_eq!(wad_error, WadError::InvalidFileExtension(text_file_path));
+    }
+
+    #[test]
+    fn test_process_wad_file_returns_io_error_when_failing_to_open_file() {
+        let mut wad_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        wad_path.push("unknown.wad");
+
+        let file_info: FileInfo = FileInfo {
+            path: wad_path,
+            extension: OsString::from(".wad"),
+            name: OsString::from("unknown"),
+            should_reload: false,
+            size: 0,
+        };
+        let wad_error: WadError = process_wad_file(file_info).err().unwrap();
+        assert_eq!(
+            wad_error,
+            WadError::IoError(String::from(
+                "Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
+            ))
+        );
     }
 }
