@@ -166,7 +166,7 @@ impl WadID {
 pub fn process_file(file_path: &Path) -> Result<Vec<Lump>, WadError> {
     let file_info: FileInfo = FileInfo::from(file_path)?;
 
-    println!("Adding {}\n", file_info.path.display());
+    println!("\nAdding {}", file_info.path.display());
 
     if file_info.extension == "wad" {
         process_wad_file(file_info)

@@ -18,8 +18,19 @@ fn main() {
 
     let mut config: Config = Config::new(&doom_options);
 
-    let wads_to_process: Vec<PathBuf> =
+    let mut wads_to_process: Vec<PathBuf> =
         wad::iwad::find_valid_iwad_file_paths(&config.wad_files_dir, &doom_options);
+
+    if doom_options.is_option_enabled("-file") {
+        let mut file_paths: Vec<PathBuf> = doom_options
+            .get_option_by_name("-file")
+            .unwrap()
+            .values
+            .iter()
+            .map(PathBuf::from)
+            .collect();
+        wads_to_process.append(&mut file_paths);
+    }
 
     config.set_game_type_by_iwad_paths(&wads_to_process);
     config.set_language_by_iwad_paths(&wads_to_process);
