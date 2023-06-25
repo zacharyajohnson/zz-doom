@@ -1,3 +1,4 @@
+use std::os::fd::OwnedFd;
 use std::{
     ffi::OsString,
     fmt::{self, Display},
@@ -10,6 +11,11 @@ pub mod iwad;
 
 const LUMP_FILE_MAX_NAME_LENGTH: usize = 8;
 const RELOAD_FILE_PREFIX: &str = "~";
+
+pub struct DoomFile {
+    pub file_handle: OwnedFd,
+    pub lumps: Vec<Lump>,
+}
 
 struct FileInfo {
     pub path: PathBuf,
@@ -164,7 +170,7 @@ impl WadID {
     }
 }
 
-pub fn process_file(file_path: &Path) -> Result<Vec<Lump>, WadError> {
+pub fn process_file(file_path: &Path) -> Result<DoomFile, WadError> {
     let file_info: FileInfo = FileInfo::from(file_path)?;
 
     println!("\nAdding {}", file_info.path.display());
@@ -190,7 +196,7 @@ pub fn process_file(file_path: &Path) -> Result<Vec<Lump>, WadError> {
     }
 }
 
-fn process_wad_file(file_info: FileInfo) -> Result<Vec<Lump>, WadError> {
+fn process_wad_file(file_info: FileInfo) -> Result<DoomFile, WadError> {
     println!("Processing wad file {}", file_info.path.display());
     let mut file: File = File::open(&file_info.path)?;
 
@@ -226,12 +232,16 @@ fn process_wad_file(file_info: FileInfo) -> Result<Vec<Lump>, WadError> {
     }
 
     println!("Wad file processing done for {}", file_info.path.display());
-    Ok(lumps)
+    Ok(DoomFile {
+        file_handle: OwnedFd::from(file),
+        lumps,
+    })
 }
 
-fn process_lump_file(file_info: FileInfo) -> Result<Vec<Lump>, WadError> {
+fn process_lump_file(file_info: FileInfo) -> Result<DoomFile, WadError> {
     println!("Processing lump file {}", file_info.path.display());
     let name: String = String::from(file_info.name.to_string_lossy());
+    let file: File = File::open(&file_info.path)?;
 
     let lump: Lump = Lump {
         name,
@@ -244,12 +254,15 @@ fn process_lump_file(file_info: FileInfo) -> Result<Vec<Lump>, WadError> {
     //println!("Lump {} = file_handle: {}, file_pos: {}, size: {}, name: {}",i, lump.file_path.display(), lump.file_position, lump.size, lump.name);
 
     println!("Lump file processing done for {}", file_info.path.display());
-    Ok(vec![lump])
+    Ok(DoomFile {
+        file_handle: OwnedFd::from(file),
+        lumps: vec![lump],
+    })
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::wad::{process_file, process_wad_file, FileInfo, Lump, WadError, WadID};
+    use crate::wad::{process_file, process_wad_file, DoomFile, FileInfo, Lump, WadError, WadID};
     use std::collections::HashMap;
     use std::ffi::OsString;
     use std::fs::File;
@@ -314,7 +327,8 @@ mod tests {
         let mut wad_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         wad_path.push("tests/resource/test.wad");
 
-        let lumps: Vec<Lump> = process_file(&wad_path).unwrap();
+        let doom_file: DoomFile = process_file(&wad_path).unwrap();
+        let lumps: Vec<Lump> = doom_file.lumps;
         let lump: &Lump = lumps.get(0).unwrap();
 
         assert_eq!(lumps.len(), 1);
@@ -330,7 +344,8 @@ mod tests {
         let mut lump_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
         lump_path.push("tests/resource/TEST.lmp");
 
-        let lumps: Vec<Lump> = process_file(&lump_path).unwrap();
+        let doom_file: DoomFile = process_file(&lump_path).unwrap();
+        let lumps: Vec<Lump> = doom_file.lumps;
 
         let lump: &Lump = lumps.get(0).unwrap();
 
