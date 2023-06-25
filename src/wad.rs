@@ -21,27 +21,28 @@ struct FileInfo {
 
 impl FileInfo {
     pub fn from(file_path: &Path) -> Result<Self, WadError> {
-        let should_reload: bool = file_path.starts_with(RELOAD_FILE_PREFIX);
-        let mut path: PathBuf = file_path.to_owned();
+        // TODO I need to convert to a string and then back into a path buf
+        // Because strip_prefix on path buf gets rid of the trailing slash for
+        // some reason in an absolute path. starts_with on a path buffer also doesn't work on a file
+        // path that is just a file name in the current dir(~test.wad).
+        // Try and find a better way to do this
+        let mut path_str: String = String::from(file_path.to_string_lossy());
+        let should_reload: bool = path_str.starts_with(RELOAD_FILE_PREFIX);
 
         // Need to strip ~ from beginning if its
         // a reloadable file
         if should_reload {
-            println!("Detected reloadable file: {}", file_path.display());
+            println!("\nDetected reloadable file: {}", file_path.display());
 
-            // TODO I need to convert to a string and then back into a path buf
-            // Because strip_prefix on path buf gets rid of the trailing slash for
-            // some reason in an absolute path. Try and find a better way to do this
-            let mut path_str: String = String::from(file_path.to_string_lossy());
             path_str = path_str
                 .strip_prefix(RELOAD_FILE_PREFIX)
                 .unwrap()
                 .to_owned();
 
-            path = PathBuf::from(path_str);
-            println!("New file path: {}", path.display());
+            println!("New file path: {}", path_str);
         }
 
+        let path = PathBuf::from(path_str);
         let file_meta_data: Metadata = path.metadata()?;
         let size: u32 = file_meta_data.len().try_into().unwrap();
 
