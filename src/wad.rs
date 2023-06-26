@@ -368,7 +368,7 @@ mod tests {
     #[test]
     fn test_process_file_returns_io_error_when_failing_to_read_wad_header_data() {
         let mut wad_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
-        wad_path.push("tests/resource/doom.wad");
+        wad_path.push("tests/resource/empty.wad");
 
         let wad_error: WadError = process_file(&wad_path).err().unwrap();
         assert_eq!(
