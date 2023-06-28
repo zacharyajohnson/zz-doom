@@ -1,4 +1,4 @@
-use std::os::fd::OwnedFd;
+use std::mem::ManuallyDrop;
 use std::{
     ffi::OsString,
     fmt::{self, Display},
@@ -13,7 +13,7 @@ const LUMP_FILE_MAX_NAME_LENGTH: usize = 8;
 const RELOAD_FILE_PREFIX: &str = "~";
 
 pub struct DoomFile {
-    pub file_handle: OwnedFd,
+    pub file_handle: ManuallyDrop<File>,
     pub lumps: Vec<Lump>,
 }
 
@@ -227,13 +227,12 @@ fn process_wad_file(file_info: FileInfo) -> Result<DoomFile, WadError> {
             should_reload: file_info.should_reload,
         };
 
-        //println!("Lump {} = file_handle: {}, file_pos: {}, size: {}, name: {}",i, lump.file_path.display(), lump.file_position, lump.size, lump.name);
         lumps.push(lump);
     }
 
     println!("Wad file processing done for {}", file_info.path.display());
     Ok(DoomFile {
-        file_handle: OwnedFd::from(file),
+        file_handle: ManuallyDrop::new(file),
         lumps,
     })
 }
@@ -255,17 +254,73 @@ fn process_lump_file(file_info: FileInfo) -> Result<DoomFile, WadError> {
 
     println!("Lump file processing done for {}", file_info.path.display());
     Ok(DoomFile {
-        file_handle: OwnedFd::from(file),
+        file_handle: ManuallyDrop::new(file),
         lumps: vec![lump],
     })
 }
 
+pub fn get_lump_data(doom_files: &mut Vec<DoomFile>, lump_name: &str) -> Vec<u8> {
+    let (doom_file, lump_index): (&mut DoomFile, usize) =
+        match doom_files.iter_mut().rev().find_map(|doom_file| {
+            let lump_index = doom_file
+                .lumps
+                .iter()
+                .rev()
+                .position(|lump| lump.name.trim_end_matches('\0') == lump_name);
+            lump_index.map(|index| (doom_file, index))
+        }) {
+            Some((doom_file, lump_index)) => (doom_file, lump_index),
+            None => panic!("Unable to find data for lump {}", lump_name),
+        };
+
+    let lump: &Lump = doom_file.lumps.get(lump_index).unwrap();
+    let mut lump_data: Vec<u8> = vec![0; usize::try_from(lump.size).unwrap()];
+
+    if lump.should_reload {
+        // This panicked in the original source code
+        let lump_file: File = match File::open(&lump.file_path) {
+            Ok(file) => file,
+            Err(e) => panic!(
+                "Unable to get lump data for lump {} located in {}. Error {}",
+                lump.name,
+                lump.file_path.display(),
+                e
+            ),
+        };
+
+        let mut lump_file: ManuallyDrop<File> = ManuallyDrop::new(lump_file);
+
+        lump_file
+            .seek(SeekFrom::Start(lump.file_position.into()))
+            .unwrap();
+
+        lump_file.read_exact(&mut lump_data).unwrap();
+
+        unsafe { ManuallyDrop::drop(&mut doom_file.file_handle) };
+        doom_file.file_handle = lump_file;
+    } else {
+        let lump_file: &mut ManuallyDrop<File> = &mut doom_file.file_handle;
+
+        lump_file
+            .seek(SeekFrom::Start(lump.file_position.into()))
+            .unwrap();
+
+        lump_file.read_exact(&mut lump_data).unwrap();
+    };
+
+    println!("test");
+    lump_data
+}
+
 #[cfg(test)]
 mod tests {
-    use crate::wad::{process_file, process_wad_file, DoomFile, FileInfo, Lump, WadError, WadID};
+    use crate::wad::{
+        get_lump_data, process_file, process_wad_file, DoomFile, FileInfo, Lump, WadError, WadID,
+    };
     use std::collections::HashMap;
     use std::ffi::OsString;
     use std::fs::File;
+    use std::mem::ManuallyDrop;
     use std::path::PathBuf;
 
     #[test]
@@ -429,7 +484,6 @@ mod tests {
         text_file_path.push("tests/resource/test.txt");
 
         let wad_error: WadError = process_file(&text_file_path).err().unwrap();
-
         assert_eq!(wad_error, WadError::InvalidFileExtension(text_file_path));
     }
 
@@ -452,5 +506,148 @@ mod tests {
                 "Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
             ))
         );
+    }
+
+    #[test]
+    fn test_get_lump_data_returns_existing_lumps_data() {
+        let mut file_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        file_path.push("tests/resource/test.wad");
+
+        let file: File = File::open(&file_path).unwrap();
+
+        let doom_file: DoomFile = DoomFile {
+            file_handle: ManuallyDrop::new(file),
+            lumps: vec![Lump {
+                name: String::from("DATA\0\0\0\0"),
+                file_path,
+                file_position: 12,
+                size: 13,
+                should_reload: false,
+            }],
+        };
+
+        let mut doom_files: Vec<DoomFile> = vec![doom_file];
+        let lump_data: Vec<u8> = get_lump_data(&mut doom_files, "DATA");
+
+        let hello_world: String = String::from_utf8(lump_data).unwrap();
+        assert_eq!(hello_world, "Hello, World!");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_get_lump_data_panics_when_lump_data_not_found() {
+        let mut file_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        file_path.push("tests/resource/test.wad");
+
+        let file: File = File::open(&file_path).unwrap();
+
+        let doom_file: DoomFile = DoomFile {
+            file_handle: ManuallyDrop::new(file),
+            lumps: vec![Lump {
+                name: String::from("DATA\0\0\0\0"),
+                file_path,
+                file_position: 12,
+                size: 13,
+                should_reload: false,
+            }],
+        };
+
+        let mut doom_files: Vec<DoomFile> = vec![doom_file];
+
+        get_lump_data(&mut doom_files, "DOESNOTEXIST");
+    }
+    #[test]
+    fn test_get_lump_data_returns_lump_data_when_lump_reloadable() {
+        let mut file_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        file_path.push("tests/resource/test.wad");
+
+        let file: File = File::open(&file_path).unwrap();
+
+        let doom_file: DoomFile = DoomFile {
+            file_handle: ManuallyDrop::new(file),
+            lumps: vec![Lump {
+                name: String::from("DATA\0\0\0\0"),
+                file_path,
+                file_position: 12,
+                size: 13,
+                should_reload: true,
+            }],
+        };
+
+        let mut doom_files: Vec<DoomFile> = vec![doom_file];
+
+        let lump_data: Vec<u8> = get_lump_data(&mut doom_files, "DATA");
+
+        let hello_world: String = String::from_utf8(lump_data).unwrap();
+        assert_eq!(hello_world, "Hello, World!");
+    }
+
+    #[test]
+    #[should_panic]
+    fn test_get_lump_data_panics_when_fails_to_find_file_when_lump_reloadable() {
+        let mut file_path: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        file_path.push("tests/resource/test.wad");
+
+        let file: File = File::open(&file_path).unwrap();
+
+        let doom_file: DoomFile = DoomFile {
+            file_handle: ManuallyDrop::new(file),
+            lumps: vec![Lump {
+                name: String::from("DATA\0\0\0\0"),
+                file_path: PathBuf::from("does-not-exist.wad"),
+                file_position: 12,
+                size: 13,
+                should_reload: true,
+            }],
+        };
+
+        let mut doom_files: Vec<DoomFile> = vec![doom_file];
+
+        get_lump_data(&mut doom_files, "DATA");
+    }
+
+    // Doom allows PWADs(Patch wads) to override the lump data of the main
+    // IWAD. This is done by always checking the lumps in reverse order when
+    // getting lump data. So overriding a lump is easy as adding a PWAD with the
+    // -file command and having it added to the end of the doom_file list
+    #[test]
+    fn test_get_lump_data_from_must_recent_lump_in_doom_file_list() {
+        let mut file_path1: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        file_path1.push("tests/resource/test.wad");
+
+        let file1: File = File::open(&file_path1).unwrap();
+
+        let doom_file1: DoomFile = DoomFile {
+            file_handle: ManuallyDrop::new(file1),
+            lumps: vec![Lump {
+                name: String::from("DATA\0\0\0\0"),
+                file_path: file_path1,
+                file_position: 12,
+                size: 13,
+                should_reload: false,
+            }],
+        };
+        let mut file_path2: PathBuf = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        file_path2.push("tests/resource/override.wad");
+
+        let file2: File = File::open(&file_path2).unwrap();
+
+        let doom_file2: DoomFile = DoomFile {
+            file_handle: ManuallyDrop::new(file2),
+            lumps: vec![Lump {
+                name: String::from("DATA\0\0\0\0"),
+                file_path: file_path2,
+                file_position: 12,
+                size: 14,
+                should_reload: false,
+            }],
+        };
+
+        let mut doom_files: Vec<DoomFile> = vec![doom_file1, doom_file2];
+
+        let lump_data: Vec<u8> = get_lump_data(&mut doom_files, "DATA");
+
+        let overrided_data: String = String::from_utf8(lump_data).unwrap();
+        assert_eq!(overrided_data, "Override Data!");
     }
 }
