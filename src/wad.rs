@@ -440,12 +440,11 @@ mod tests {
         wad_path.push("unknown.wad");
 
         let wad_error: WadError = process_file(&wad_path).err().unwrap();
-        assert_eq!(
-            wad_error,
-            WadError::IoError(String::from(
-                "Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
-            ))
-        );
+
+        // Need to check this way since the display message between window/linux is different
+        assert!(wad_error
+            .to_string()
+            .contains("Os { code: 2, kind: NotFound"));
     }
 
     #[test]
@@ -500,12 +499,11 @@ mod tests {
             size: 0,
         };
         let wad_error: WadError = process_wad_file(file_info).err().unwrap();
-        assert_eq!(
-            wad_error,
-            WadError::IoError(String::from(
-                "Os { code: 2, kind: NotFound, message: \"No such file or directory\" }"
-            ))
-        );
+
+        // Need to check this way since the display message between window/linux is different
+        assert!(wad_error
+            .to_string()
+            .contains("Os { code: 2, kind: NotFound"));
     }
 
     #[test]
