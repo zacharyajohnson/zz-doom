@@ -186,8 +186,8 @@ pub fn process_file(file_path: &Path) -> Result<DoomFile, WadError> {
             panic!(
                 "Invalid file name for lump file {}. Max length for file name is {}, actual is {}",
                 file_info.path.display(),
-                file_info.name.len(),
-                LUMP_FILE_MAX_NAME_LENGTH
+                LUMP_FILE_MAX_NAME_LENGTH,
+                file_info.name.len()
             );
         }
         process_lump_file(file_info)
@@ -265,8 +265,7 @@ pub fn get_lump_data(doom_files: &mut Vec<DoomFile>, lump_name: &str) -> Vec<u8>
             let lump_index = doom_file
                 .lumps
                 .iter()
-                .rev()
-                .position(|lump| lump.name.trim_end_matches('\0') == lump_name);
+                .rposition(|lump| lump.name.trim_end_matches('\0') == lump_name);
             lump_index.map(|index| (doom_file, index))
         }) {
             Some((doom_file, lump_index)) => (doom_file, lump_index),
