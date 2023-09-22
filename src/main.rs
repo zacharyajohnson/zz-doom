@@ -2,7 +2,9 @@ use std::{env, path::PathBuf};
 
 mod config;
 mod option;
+mod sound;
 mod util;
+mod video;
 mod wad;
 
 use config::Config;
@@ -50,4 +52,7 @@ fn main() {
             Err(error) => eprintln!("Error processing file {}.\n {}", wad_path.display(), error),
         }
     }
+
+    sound::start_sound("pistol", doom_files);
+    //unsafe { video::sdl_test(wad::get_lump_data(&mut doom_files, "HELP1")) }
 }
