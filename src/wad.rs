@@ -307,7 +307,6 @@ pub fn get_lump_data(doom_files: &mut Vec<DoomFile>, lump_name: &str) -> Vec<u8>
         lump_file.read_exact(&mut lump_data).unwrap();
     };
 
-    println!("test");
     lump_data
 }
 
